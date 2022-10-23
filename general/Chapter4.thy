@@ -25,9 +25,14 @@ the tests if a tree is ordered:
 *}
 
 fun set :: "'a tree \<Rightarrow> 'a set"  where
+"set Tip = {}" |
+"set (Node l v r) = {v}\<union>(set l)\<union>(set r)"
 (* your definition/proof here *)
 
 fun ord :: "int tree \<Rightarrow> bool"  where
+"ord Tip = true" |
+"ord (Node l v r) = ((\<forall>x\<in>(set l). x < v) and (\<forall>x\<in>(set r). v < r) and (ord l) and (ord r))"
+
 (* your definition/proof here *)
 
 text{* Hint: use quantifiers.
