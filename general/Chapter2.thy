@@ -59,15 +59,10 @@ fun double :: "nat \<Rightarrow> nat" where
 
 text \<open> and prove that \<close>
 
-lemma add_successor: "Suc (add a b) = add a (Suc b)"
-  apply(induction a)
-  apply auto
-  done
-
 lemma double_add: "double m = add m m"
   apply(induction m)
    apply auto
-  using add_successor
+  using add_succ
   by fastforce
 (* your definition/proof here *)
 text \<open>
@@ -218,7 +213,7 @@ datatype 'a tree2 = Tip 'a | Node "'a tree2" 'a "'a tree2"
 
 fun mirror :: "'a tree2 \<Rightarrow> 'a tree2" where
 "mirror (Tip v) = Tip v" |
-"mirror (Node l v r) = Node r v l"
+"mirror (Node l v r) = Node (mirror r) v (mirror l)"
 
 fun pre_order :: "'a tree2 \<Rightarrow> 'a list" where
 "pre_order (Tip v) = [v]" |
@@ -236,10 +231,7 @@ a list. Prove
 \<close>
 
 lemma "pre_order (mirror t) = rev (post_order t)"
-  apply(induction t)
-  apply auto
-  
-  sorry
+  apply(induction t) by auto
 (* your definition/proof here *)
 
 text \<open>
@@ -260,15 +252,9 @@ such that @{text "intersperse a [x\<^sub>1, ..., x\<^sub>n] = [x\<^sub>1, a, x\<
 Prove
 \<close>
 
-lemma fmap: "map f (x#xs) = (f x)#(map f xs)"
-  apply(induction xs)
-  apply auto
-  done
-
 lemma "map f (intersperse a xs) = intersperse (f a) (map f xs)"
-  apply(induction xs)
-  apply auto using fmap
-  sorry
+  apply(induction a xs rule: intersperse.induct) by auto
+  
 (* your definition/proof here *)
 
 text \<open>
@@ -291,15 +277,12 @@ Prove
 \<close>
 
 lemma itadd_suc_suc_itadd: "itadd (Suc m) n = Suc (itadd m n)"
-  apply(induction n)
-   apply auto
-  done
-  sorry
+  apply(induction m n rule: itadd.induct) by auto
 
 lemma "itadd m n = add m n"
-  apply(induction n)
-  apply auto
-   apply (simp add: add_zero)
+  apply(induction m n rule: itadd.induct)
+  apply(auto)
+  apply(simp add: add_zero)
   using add_succ itadd_suc_suc_itadd by presburger
 
 (* your definition/proof here *)
