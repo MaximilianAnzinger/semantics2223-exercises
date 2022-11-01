@@ -1,7 +1,7 @@
 theory Chapter3
 imports "HOL-IMP.BExp"
         "HOL-IMP.ASM"
-        "Short_Theory"
+       (* "Short_Theory.thy"*)
 begin
 
 text\<open>
@@ -13,6 +13,10 @@ To show that @{const asimp_const} really folds all subexpressions of the form
 \<close>
 
 fun optimal :: "aexp \<Rightarrow> bool" where
+"optimal (N v) = True" |
+"optimal (V v) = True" |
+"optimal (Plus (N i) (N j)) = False" |
+"optimal (Plus i j) = ((optimal i) \<and> (optimal j))"
 (* your definition/proof here *)
 
 text\<open>
@@ -22,6 +26,7 @@ is optimal:
 \<close>
 
 lemma "optimal (asimp_const a)"
+  apply(induction a) by(auto split: aexp.split)
 (* your definition/proof here *)
 
 text\<open>
@@ -46,9 +51,15 @@ constants in an expression by zeroes (they will be optimized away later):
 \<close>
 
 fun sumN :: "aexp \<Rightarrow> int" where
+  "sumN (N n) = n" |
+  "sumN (V v) = 0" |
+  "sumN (Plus i j) = (sumN i) + (sumN j)"
 (* your definition/proof here *)
 
 fun zeroN :: "aexp \<Rightarrow> aexp" where
+  "zeroN (N n) = N 0" |
+  "zeroN (V v) = V v" |
+  "zeroN (Plus i j) = Plus (zeroN i) (zeroN j)"
 (* your definition/proof here *)
 
 text\<open>
@@ -58,9 +69,11 @@ that adds the results of @{const sumN} and @{const zeroN}. Prove that
 \<close>
 
 definition sepN :: "aexp \<Rightarrow> aexp" where
+  "sepN e = Plus (N (sumN e)) (zeroN e)"
 (* your definition/proof here *)
 
 lemma aval_sepN: "aval (sepN t) s = aval t s"
+  apply(induction t) by(auto simp: sepN_def)
 (* your definition/proof here *)
 
 text\<open>
@@ -70,12 +83,12 @@ Prove that it preserves the value of an arithmetic expression.
 \<close>
 
 definition full_asimp :: "aexp \<Rightarrow> aexp" where
+  "full_asimp e = asimp (sepN e)"
 (* your definition/proof here *)
 
 lemma aval_full_asimp: "aval (full_asimp t) s = aval t s"
+  apply(induction t arbitrary: s) by (auto simp: aval_sepN full_asimp_def)
 (* your definition/proof here *)
-
-
 
 text\<open>
 \endexercise
@@ -87,6 +100,9 @@ by an expression in an expression. Define a substitution function
 \<close>
 
 fun subst :: "vname \<Rightarrow> aexp \<Rightarrow> aexp \<Rightarrow> aexp" where
+  "subst v e (N n) = N n" |
+  "subst v e (V n) = (if n = v then e else (V n))" |
+  "subst v e (Plus i j) = Plus (subst v e i) (subst v e j)"
 (* your definition/proof here *)
 
 text\<open>
@@ -100,6 +116,7 @@ substitute first and evaluate afterwards or evaluate with an updated state:
 \<close>
 
 lemma subst_lemma: "aval (subst x a e) s = aval e (s(x := aval a s))"
+  apply(induction e arbitrary: x a s) by auto
 (* your definition/proof here *)
 
 text\<open>
@@ -108,6 +125,7 @@ and obtain the same result under evaluation:
 \<close>
 lemma "aval a1 s = aval a2 s
   \<Longrightarrow> aval (subst x a1 e) s = aval (subst x a2 e) s"
+  apply(induction e arbitrary: x s) by auto
 (* your definition/proof here *)
 
 text\<open>

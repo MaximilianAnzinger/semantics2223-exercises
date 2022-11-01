@@ -10,26 +10,59 @@ inductive iter :: "('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> nat \<
 iter_0: "iter r 0 x x" |
 iter_Suc: "r x y \<Longrightarrow> iter r n y z \<Longrightarrow> iter r (Suc n) x z"
 
-text{*
+text \<open>
 \section*{Chapter 5}
 
 \exercise
 Give a readable, structured proof of the following lemma:
-*}
+\<close>
 lemma assumes T: "\<forall>x y. T x y \<or> T y x"
   and A: "\<forall>x y. A x y \<and> A y x \<longrightarrow> x = y"
   and TA: "\<forall>x y. T x y \<longrightarrow> A x y" and "A x y"
   shows "T x y"
+proof-
+  have "T x y \<or> T y x"
+    using T by blast
+  hence "T x y \<or> A y x"
+    using TA by blast
+  hence "T x y \<or> A x y \<and> A y x"
+    using assms(4) by blast
+  hence "T x y \<or> x = y"
+    using A by blast
+  hence "T x y"
+    using T by blast
+  then show ?thesis .
+qed
+
+(*
+proof(cases "T x y")
+  case True
+  then show ?thesis by blast
+next
+  case False
+  have TT: "T y x"
+    using False T by blast
+  hence "A y x"
+    using TA by blast
+  hence "A x y \<and> A y x"
+    using assms(4) by blast
+  hence "x = y"
+    using A by blast
+  then show ?thesis
+    using TT by auto
+qed
+*)
+
 (* your definition/proof here *)
 
-text{*
+text \<open>
 Each step should use at most one of the assumptions @{text T}, @{text A}
 or @{text TA}.
 \endexercise
 
 \exercise
 Give a readable, structured proof of the following lemma:
-*}
+\<close>
 lemma "(\<exists>ys zs. xs = ys @ zs \<and> length ys = length zs)
       \<or> (\<exists>ys zs. xs = ys @ zs \<and> length ys = length zs + 1)"
 (* your definition/proof here *)

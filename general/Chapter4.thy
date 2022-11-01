@@ -6,23 +6,23 @@ inductive star :: "('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> 'a \<R
 refl:  "star r x x" |
 step:  "r x y \<Longrightarrow> star r y z \<Longrightarrow> star r x z"
 
-text{*
+text \<open>
 \section*{Chapter 4}
 
 \exercise
 Start from the data type of binary trees defined earlier:
-*}
+\<close>
 
 datatype 'a tree = Tip | Node "'a tree" 'a "'a tree"
 
-text{*
+text \<open>
 An @{typ "int tree"} is ordered if for every @{term "Node l i r"} in the tree,
 @{text l} and @{text r} are ordered
 and all values in @{text l} are @{text "< i"}
 and all values in @{text r} are @{text "> i"}.
 Define a function that returns the elements in a tree and one
 the tests if a tree is ordered:
-*}
+\<close>
 
 fun set :: "'a tree \<Rightarrow> 'a set"  where
 "set Tip = {}" |
@@ -30,30 +30,36 @@ fun set :: "'a tree \<Rightarrow> 'a set"  where
 (* your definition/proof here *)
 
 fun ord :: "int tree \<Rightarrow> bool"  where
-"ord Tip = true" |
-"ord (Node l v r) = ((\<forall>x\<in>(set l). x < v) and (\<forall>x\<in>(set r). v < r) and (ord l) and (ord r))"
+"ord Tip = True" |
+"ord (Node l v r) = ((\<forall>x\<in>(set l). x < v) \<and> (\<forall>x\<in>(set r). v < x) \<and> (ord l) \<and> (ord r))"
 
 (* your definition/proof here *)
 
-text{* Hint: use quantifiers.
+text\<open>
+ Hint: use quantifiers.
 
 Define a function @{text ins} that inserts an element into an ordered @{typ "int tree"}
 while maintaining the order of the tree. If the element is already in the tree, the
 same tree should be returned.
-*}
+\<close>
 
 fun ins :: "int \<Rightarrow> int tree \<Rightarrow> int tree"  where
+"ins i Tip = Node Tip i Tip " |
+"ins i (Node l v r) = (if i = v then Node l v r else if i < v then Node (ins i l) v r else Node l v (ins i r))"
 (* your definition/proof here *)
 
-text{* Prove correctness of @{const ins}: *}
+text\<open> Prove correctness of @{const ins}: \<close>
 
 lemma set_ins: "set(ins x t) = {x} \<union> set t"
+  apply(induction x t rule: ins.induct) by auto
 (* your definition/proof here *)
 
 theorem ord_ins: "ord t \<Longrightarrow> ord(ins i t)"
+  apply(induction t rule: ins.induct)
+  
 (* your definition/proof here *)
 
-text{*
+  text\<open>
 \endexercise
 
 \exercise
@@ -63,9 +69,14 @@ Formalize the following definition of palindromes
 \item If @{text xs} is a palindrome, so is @{term "a # xs @ [a]"}.
 \end{itemize}
 as an inductive predicate
-*}
+\<close>
 
 inductive palindrome :: "'a list \<Rightarrow> bool" where
+  empty: "palindrome []" |
+  singleton: "palindrome [x]" |
+  cont: "palindrome xs \<Longrightarrow> palindrome (a # xs @ [a])"
+  
+
 (* your definition/proof here *)
 
 text {* and prove *}

@@ -367,6 +367,25 @@ Define a function @{text coeffs} that transforms an expression into a polynomial
 This will require auxiliary functions.
 \<close>
 
+fun multdown :: "exp \<Rightarrow> exp" where
+"multdown Var = Var" |
+"multdown (Const c) = Const c" |
+"multdown (Add e1 e2) = Add (multdown e1) (multdown e2)" |
+"multdown (Mult (Const c) (Add e1 e2)) = Add (Mult (Const c) e1) (Mult (Const c) e2)" |
+"multdown (Mult (Add e1 e2) (Const c)) = multdown (Mult (Const c) (Add e1 e2))" |
+"multdown (Mult Var (Add e1 e2)) = Add (Mult Var e1) (Mult Var  e2)" |
+"multdown (Mult (Add e1 e2) Var) = multdown (Mult Var (Add e1 e2))" |
+"multdown (Mult e1 e2) = Mult (multdown e1) (multdown e2)"
+
+fun transexpr :: "exp \<Rightarrow> exp" where
+"transexpr Var = Var" |
+"transexpr (Const c) = (Const c)" |
+"transexpr (Mult (Add e1 e2) (Const c)) = transexpr (Mult (Const c) (Add e1 e2))" |
+"transexpr ((Const c) Mult (Add e1 e2)) = Add (Mult (Const c) e1) (Mult (Const c) e2)" |
+"transexpr (Mult Var (Add e1 e2)) = transexpr (Mult (Add e1 e2) Var)" |
+"transexpr (Mult (Add e1 e2) Var) = Add (Mult e1 Var) (Mult e2 Var)"
+
+
 fun coeffs :: "exp \<Rightarrow> int list" where
 (* your definition/proof here *)
 
