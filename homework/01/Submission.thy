@@ -11,19 +11,19 @@ value "find_pfx [] (1::nat) = []"
 
 lemma find_pfx_append:
   "(find_pfx (xs1 @ [x] @ xs2) x) = (find_pfx (xs1 @ [x]) x)"
-  apply(induction xs1) by auto
+  by(induction xs1, auto)
 
 lemma find_pfx_not_empty: "x \<in> set xs \<Longrightarrow> length (find_pfx xs x) > 0"
-  apply(induction xs) by auto
+  by(induction xs, auto)
 
 lemma last_find_pfx_val:
   "last (find_pfx (xs @ [x]) x) = x"
-  apply(induction xs) using find_pfx_not_empty by auto
+  using find_pfx_not_empty by(induction xs, auto)
 
-lemma find_pfx_suff: "x \<in> set xs \<Longrightarrow> find_pfx (xs @ ys) x = find_pfx xs x"
-  apply(induction xs) by auto
+lemma find_pfx_suff[simp]: "x \<in> set xs \<Longrightarrow> find_pfx (xs @ ys) x = find_pfx xs x"
+  by(induction xs, auto)
 
 lemma pfx_append_same: "x \<in> set xs \<Longrightarrow> find_pfx (xs @ xs) x = find_pfx xs x"
-  apply(induction xs) using find_pfx_suff by auto
+  by simp
 
 end
