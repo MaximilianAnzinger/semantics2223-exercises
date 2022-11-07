@@ -34,25 +34,6 @@ proof-
   then show ?thesis .
 qed
 
-(*
-proof(cases "T x y")
-  case True
-  then show ?thesis by blast
-next
-  case False
-  have TT: "T y x"
-    using False T by blast
-  hence "A y x"
-    using TA by blast
-  hence "A x y \<and> A y x"
-    using assms(4) by blast
-  hence "x = y"
-    using A by blast
-  then show ?thesis
-    using TT by auto
-qed
-*)
-
 (* your definition/proof here *)
 
 text \<open>

@@ -26,7 +26,7 @@ is optimal:
 \<close>
 
 lemma "optimal (asimp_const a)"
-  apply(induction a) by(auto split: aexp.split)
+  by(induction a, auto split: aexp.split)
 (* your definition/proof here *)
 
 text\<open>
@@ -73,7 +73,7 @@ definition sepN :: "aexp \<Rightarrow> aexp" where
 (* your definition/proof here *)
 
 lemma aval_sepN: "aval (sepN t) s = aval t s"
-  apply(induction t) by(auto simp: sepN_def)
+  by(induction t, auto simp: sepN_def)
 (* your definition/proof here *)
 
 text\<open>
@@ -87,7 +87,7 @@ definition full_asimp :: "aexp \<Rightarrow> aexp" where
 (* your definition/proof here *)
 
 lemma aval_full_asimp: "aval (full_asimp t) s = aval t s"
-  apply(induction t arbitrary: s) by (auto simp: aval_sepN full_asimp_def)
+  by(induction t arbitrary: s, auto simp: aval_sepN full_asimp_def)
 (* your definition/proof here *)
 
 text\<open>
@@ -116,7 +116,7 @@ substitute first and evaluate afterwards or evaluate with an updated state:
 \<close>
 
 lemma subst_lemma: "aval (subst x a e) s = aval e (s(x := aval a s))"
-  apply(induction e arbitrary: x a s) by auto
+  by(induction e arbitrary: x a s, auto)
 (* your definition/proof here *)
 
 text\<open>
@@ -125,7 +125,7 @@ and obtain the same result under evaluation:
 \<close>
 lemma "aval a1 s = aval a2 s
   \<Longrightarrow> aval (subst x a1 e) s = aval (subst x a2 e) s"
-  apply(induction e arbitrary: x s) by auto
+  by(induction e arbitrary: x s, auto)
 (* your definition/proof here *)
 
 text\<open>

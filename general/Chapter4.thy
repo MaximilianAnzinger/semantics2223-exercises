@@ -51,12 +51,11 @@ fun ins :: "int \<Rightarrow> int tree \<Rightarrow> int tree"  where
 text\<open> Prove correctness of @{const ins}: \<close>
 
 lemma set_ins: "set(ins x t) = {x} \<union> set t"
-  apply(induction x t rule: ins.induct) by auto
+  by(induction x t rule: ins.induct, auto)
 (* your definition/proof here *)
 
 theorem ord_ins: "ord t \<Longrightarrow> ord(ins i t)"
-  apply(induction t rule: ins.induct)
-  
+  using set_ins by(induction t rule: ins.induct, auto)
 (* your definition/proof here *)
 
   text\<open>
@@ -79,36 +78,39 @@ inductive palindrome :: "'a list \<Rightarrow> bool" where
 
 (* your definition/proof here *)
 
-text {* and prove *}
+text \<open> and prove \<close>
 
 lemma "palindrome xs \<Longrightarrow> rev xs = xs"
+  by(induction xs rule: palindrome.induct, auto)
 (* your definition/proof here *)
 
-text{*
+text \<open>
 \endexercise
 
 \exercise
 We could also have defined @{const star} as follows:
-*}
+\<close>
 
 inductive star' :: "('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" for r where
 refl': "star' r x x" |
 step': "star' r x y \<Longrightarrow> r y z \<Longrightarrow> star' r x z"
 
-text{*
+text \<open>
 The single @{text r} step is performer after rather than before the @{text star'}
 steps. Prove
-*}
+\<close>
 
 lemma "star' r x y \<Longrightarrow> star r x y"
+  sorry
 (* your definition/proof here *)
 
 
 
 lemma "star r x y \<Longrightarrow> star' r x y"
+  sorry
 (* your definition/proof here *)
 
-text{*
+text \<open>
 You may need lemmas. Note that rule induction fails
 if the assumption about the inductive predicate
 is not the first assumption.
@@ -119,14 +121,14 @@ Analogous to @{const star}, give an inductive definition of the @{text n}-fold i
 of a relation @{text r}: @{term "iter r n x y"} should hold if there are @{text x\<^sub>0}, \dots, @{text x\<^sub>n}
 such that @{prop"x = x\<^sub>0"}, @{prop"x\<^sub>n = y"} and @{text"r x\<^bsub>i\<^esub> x\<^bsub>i+1\<^esub>"} for
 all @{prop"i < n"}:
-*}
+\<close>
 
 inductive iter :: "('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" for r where
 (* your definition/proof here *)
 
-text{*
+text\<open>
 Correct and prove the following claim:
-*}
+\<close>
 
 lemma "star r x y \<Longrightarrow> iter r n x y"
 (* your definition/proof here *)
