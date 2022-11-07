@@ -32,22 +32,18 @@ You will need additional lemmas.
 \<close>
 
 lemma add_zero: "add n 0 = n"
-  apply(induction n) by auto
+  by(induction n, auto)
 
 lemma add_assoc: "add (add m n) p = add m (add n p)"
-  apply(induction m) by auto
+  by (induction m, auto)
   
 (* your definition/proof here *)
 
 lemma add_succ: "Suc (add n m) = add n (Suc m)"
-  apply(induction n) by auto
+  by(induction n, auto)
 
 lemma add_comm: "add m n = add n m"
-  apply(induction m)
-  apply auto
-  apply(simp add: add_zero)
-  apply(simp add: add_succ)
-  done
+  by(induction m, auto simp: add_zero add_succ)
 (* your definition/proof here *)
 
 text \<open> Define a recursive function \<close>
@@ -60,10 +56,8 @@ fun double :: "nat \<Rightarrow> nat" where
 text \<open> and prove that \<close>
 
 lemma double_add: "double m = add m m"
-  apply(induction m)
-   apply auto
-  using add_succ
-  by fastforce
+  apply(induction m, auto)
+  using add_succ by fastforce
 (* your definition/proof here *)
 text \<open>
 \endexercise
@@ -86,9 +80,7 @@ Prove the following inequality:
 \<close>
 
 theorem "count xs x \<le> length xs"
-  apply(induction xs)
-  apply auto
-  done
+  by(induction xs, auto)
 (* your definition/proof here *)
 
 text \<open>
@@ -124,14 +116,10 @@ Prove the following theorem. You will need an additional lemma.
 \<close>
 
 lemma snoc_add_last: "snoc xs v = xs @ [v]"
-  apply(induction xs)
-  apply auto
-  done
+  by(induction xs, auto)
 
 lemma reverse_last_to_first: "reverse (xs@[v]) = v # reverse xs"
-  apply(induction xs)
-  apply auto
-  done
+  by(induction xs, auto)
 
 theorem "reverse (reverse xs) = xs"
   apply(induction xs)
@@ -162,7 +150,7 @@ in the main text. Then prove the same property in Isabelle:
 \<close>
 
 lemma "sum_upto n = n * (n+1) div 2"
-  apply(induction n) by auto
+  by(induction n, auto)
 (* your definition/proof here *)
 
 text \<open>
@@ -195,9 +183,7 @@ fun sum_tree :: "nat tree \<Rightarrow> nat" where
 text \<open> and prove \<close>
 
 lemma "sum_tree t = sum_list(contents t)"
-  apply(induction t)
-  apply auto
-  done
+  by(induction t, auto)
 (* your definition/proof here *)
 
 text \<open>
@@ -231,7 +217,7 @@ a list. Prove
 \<close>
 
 lemma "pre_order (mirror t) = rev (post_order t)"
-  apply(induction t) by auto
+  by(induction t, auto)
 (* your definition/proof here *)
 
 text \<open>
@@ -242,7 +228,8 @@ Define a recursive function
 \<close>
 
 fun intersperse :: "'a \<Rightarrow> 'a list \<Rightarrow> 'a list" where
-"intersperse a [] = []" |
+"intersperse a [] = []
+" |
 "intersperse a [x] = [x]" |
 "intersperse a (x#xs) = x#a#(intersperse a xs)"
 (* your definition/proof here *)
@@ -253,7 +240,7 @@ Prove
 \<close>
 
 lemma "map f (intersperse a xs) = intersperse (f a) (map f xs)"
-  apply(induction a xs rule: intersperse.induct) by auto
+  by (induction a xs rule: intersperse.induct, auto)
   
 (* your definition/proof here *)
 
@@ -277,12 +264,10 @@ Prove
 \<close>
 
 lemma itadd_suc_suc_itadd: "itadd (Suc m) n = Suc (itadd m n)"
-  apply(induction m n rule: itadd.induct) by auto
+  by(induction m n rule: itadd.induct, auto)
 
 lemma "itadd m n = add m n"
-  apply(induction m n rule: itadd.induct)
-  apply(auto)
-  apply(simp add: add_zero)
+  apply(induction m n rule: itadd.induct, auto simp: add_zero)
   using add_succ itadd_suc_suc_itadd by presburger
 
 (* your definition/proof here *)
