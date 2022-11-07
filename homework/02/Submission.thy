@@ -15,11 +15,11 @@ fun rldec :: "('a \<times> nat) list \<Rightarrow> 'a list"  where
   "rldec [] = []" |
   "rldec ((v, c)#xs) = (replicate c v)@(rldec xs)"
 
-lemma enc_dec_prep_same: " rldec (rlenc a (Suc c) l) = a # replicate c a @ l"
-  apply(induction l arbitrary: a c) by(auto simp: replicate_append_same)
+lemma enc_dec_prep_same[simp]: " rldec (rlenc a (Suc c) l) = a # replicate c a @ l"
+  by(induction l arbitrary: a c, auto simp: replicate_append_same)
 
 theorem enc_dec: "rldec (rlenc a 0 l) = l"
-  apply(induction l arbitrary: a) by(auto simp: enc_dec_prep_same)
+  by(induction l arbitrary: a, auto)
 
 fun normal :: "aexp \<Rightarrow> bool"  where
   "normal (Plus a\<^sub>1 a\<^sub>2) = (normal a\<^sub>1 \<and> normal a\<^sub>2)"|
@@ -39,9 +39,9 @@ fun normalize :: "aexp \<Rightarrow> aexp"  where
     )"
 
 theorem semantics_unchanged: "aval (normalize a) s = aval a s"
-  apply(induction a rule: normalize.induct) by(auto split: aexp.splits)
+  by(induction a rule: normalize.induct, auto split: aexp.splits)
 
 theorem normalize_normalizes: "normal (normalize a)"
-  apply(induction a rule: normalize.induct) by(auto split: aexp.splits)
+  by(induction a rule: normalize.induct, auto split: aexp.splits)
 
 end
