@@ -49,6 +49,6 @@ lemma aval'_mono:
 
 lemma aval'_inc:
   "aval' a <> = (v, s') \<Longrightarrow> 0 \<le> s' x"
-  using aval'_mono by (auto simp: null_state_def)
+  unfolding null_state_def using aval'_mono by fastforce
 
 end
