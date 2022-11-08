@@ -1,22 +1,22 @@
 theory Chapter7
-imports "HOL-IMP.Small_Step" "Short_Theory"
+imports "HOL-IMP.Small_Step" (*"Short_Theory"*)
 begin
 
-text{*
+text \<open>
 \section*{Chapter 7}
 
 \exercise
 Define a function that computes the set of variables that are assigned to
 in a command:
-*}
+\<close>
 
 fun assigned :: "com \<Rightarrow> vname set" where
 (* your definition/proof here *)
 
-text{*
+text \<open>
 Prove that if some variable is not assigned to in a command,
 then that variable is never modified by the command:
-*}
+\<close>
 
 lemma "\<lbrakk> (c, s) \<Rightarrow> t; x \<notin> assigned c \<rbrakk> \<Longrightarrow> s x = t x"
 (* your definition/proof here *)
