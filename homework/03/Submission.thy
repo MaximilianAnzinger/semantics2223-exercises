@@ -6,21 +6,48 @@ inductive_set G :: "string set" where
 empty: "[] \<in> G" |
 pack: "w \<in> G \<Longrightarrow> (a#w@[b]) \<in> G"
 
-
+lemma G_inv: "w \<in> G \<Longrightarrow> w = (a#w'@[b]) \<Longrightarrow> w' \<in> G"
+  using G.cases by blast
 
 theorem G_is_replicate:
   assumes "w \<in> G"
   shows "\<exists>n. w = replicate n a @ replicate n b"
-  
-  sorry
+using assms proof(induction rule: G.induct)
+  case empty
+  then show ?case
+    by simp
+next
+  case (pack w)
+  obtain n' where "w = replicate n' a @ replicate n' b"
+    using pack.IH by blast
+  then have "a # w @ [b] = a # replicate n' a @ replicate n' b @ [b]"
+    by force
+  then have "a # w @ [b] = replicate (n' + 1) a @ replicate (n' + 1) b"
+    by (simp add: replicate_append_same)
+  then show ?case
+    by blast
+qed
+
+lemma rep_suc: "replicate (Suc n) a @ replicate (Suc n) b = a # replicate n a @ replicate n b @ [b]"
+  by (simp add: replicate_append_same)
 
 theorem replicate_G:
   assumes "w = replicate n a @ replicate n b"
   shows "w \<in> G"
-   using assms apply(induction n)
-   apply (simp add: G.empty)
- (*apply(induction w, auto intro: G.intros) sledgehammer *)
-  sorry
+  using assms proof(induction n arbitrary: w)
+  case 0
+  then show ?case
+    by (simp add: G.empty)
+next
+  case (Suc n)
+  from Suc.IH have w': "(replicate n a @ replicate n b) \<in> G"
+    by blast
+  from Suc.IH w' have "a # replicate n a @ replicate n b @ [b] \<in> G" using G.pack
+    by fastforce
+  then have "w \<in> G"
+    using rep_suc Suc.prems by presburger
+  thus ?case.
+qed
 
 corollary L_eq_G: "L = G"
   unfolding L_def using G_is_replicate replicate_G by auto
@@ -58,7 +85,7 @@ theorem val_maxvar_same[simp]:
   by(induction e, auto)
 
 theorem compiler_correct: "execs (cmp e (maxvar e + 1)) s 0 = val e (s o Suc)"
-  apply(induction e) apply(auto) sledgehammer
+  apply(induction e) apply(auto) 
   sorry
 
 end
