@@ -71,7 +71,7 @@ theorem execs_append[simp]: "\<And>s. execs (xs @ ys) s = execs ys (execs xs s)"
 fun cmp :: "expr \<Rightarrow> nat \<Rightarrow> instr list"  where
   "cmp (C i) _ = [LDI i]" |
   "cmp (V i) _ = [LD i]" |
-  "cmp (A e1 e2) n = (cmp e1 n)@(ST n)#(cmp e2 (n+1))@[ADD (n)]"
+  "cmp (A e1 e2) n = (cmp e1 n)@(ST (n))#(cmp e2 (n+1))@[ADD (n)]"
 
 value "cmp (A (V 1) (V 2)) 10"
 
@@ -84,8 +84,17 @@ theorem val_maxvar_same[simp]:
   "\<forall>n \<le> maxvar e. s n = s' n \<Longrightarrow> val e s = val e s'"
   by(induction e, auto)
 
+lemma cmp_n_same[simp]: "\<forall>i \<le> n. 0 < i \<longrightarrow> execs (cmp e n) s i = s i"
+  by(induction e n arbitrary: s rule: cmp.induct, auto)
+
+lemma cmp_maxvar_same[simp]:
+  "\<forall>n > maxvar e. \<forall>i \<le> maxvar e. 0 < i \<longrightarrow> execs (cmp e n) s i = s i"
+  by(induction e arbitrary: s, auto)
+
+lemma compiler_correct_free_reg: "\<forall>n > maxvar e. execs (cmp e n) s 0 = val e (s o Suc)"
+  by(induction e arbitrary: s, auto)
+
 theorem compiler_correct: "execs (cmp e (maxvar e + 1)) s 0 = val e (s o Suc)"
-  apply(induction e) apply(auto) 
-  sorry
+  using compiler_correct_free_reg less_add_one by blast
 
 end
