@@ -64,15 +64,46 @@ value "lval (Let ''x'' (N 5) (Let ''y'' (V ''x'') (Plus (V ''x'') (Plus (V ''y''
 paragraph \<open>Step 1\<close>
 
 fun replace :: "lexp \<Rightarrow> vname \<Rightarrow> lexp \<Rightarrow> lexp" where
-"replace e x (Let u a b) = Let u (replace e x a) (replace e x b)"
-| "replace _ = undefined"
-| "replace e x a = a"
+  "replace e x (Let u a b) = Let u (replace e x a) (replace e x b)" |
+  "replace e x (Plus a b) = (if e = Plus a b then V x else Plus (replace e x a) (replace e x b))" |
+  "replace e x a = a"
 
 paragraph \<open>Step 2\<close>
 
 theorem lval_upd_state_same:
   "x \<notin> vars_of a \<Longrightarrow> lval a (s(x := v)) = lval a s"
-  sorry
+  proof(induction a arbitrary: x s v)
+    case (N x)
+    then show ?case
+      by simp
+  next
+    case (V x)
+    then show ?case
+      by simp
+  next
+    case (Plus a b)
+    then show ?case
+      by simp
+  next
+    case (Let n a b)
+    then have n_noteq_x: "n \<noteq> x"
+      by auto
+    then obtain s' where s'_def: "s' = s(n := lval a s)"
+      by blast
+    have "lval (Let n a b) (s(x := v)) = lval b (s(x := v,n := lval a (s(x := v))))"
+      by fastforce
+    also have "... = lval b (s(x := v,n := lval a s))"
+      using local.Let.IH(1) local.Let.prems by fastforce
+    also have "... = lval b (s'(x := v))"
+      using n_noteq_x s'_def by (simp add: fun_upd_twist)
+    also have "... = lval b s'"
+      using local.Let.IH(2) local.Let.prems by fastforce
+    also have "... = lval b (s(n := lval a s))"
+      using s'_def by simp
+    also have "... = lval (Let n a b) s"
+      by simp
+    finally show ?case .
+  qed
 
 paragraph \<open>Step 3\<close>
 
