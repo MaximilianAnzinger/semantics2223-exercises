@@ -110,15 +110,49 @@ paragraph \<open>Step 3\<close>
 theorem lval_replace:
   assumes "x \<notin> vars_of a"
       and "bounds_of a \<inter> vars_of e = {}"
-  shows "lval (replace e x a) (s(x := lval e s)) = lval a s"
-  sorry
+    shows "lval (replace e x a) (s(x := lval e s)) = lval a s"
+using assms proof(induction a arbitrary: x e s)
+  case (N x)
+  then show ?case by simp
+next
+  case (V x)
+  then show ?case by simp
+next
+  case (Plus e1 e2)
+  then show ?case
+  proof(cases "e=Plus e1 e2")
+    case True
+    then show ?thesis
+      by simp
+  next
+    case False
+    from local.Plus.prems have x_not_in_sub: "x \<notin> vars_of e1" "x \<notin> vars_of e2" 
+      by simp+
+    from local.Plus.prems have sub_dist_from_e: "bounds_of e1 \<inter> vars_of e = {}" "bounds_of e2 \<inter> vars_of e = {}"
+      by auto
+    from False have "replace e x (Plus e1 e2) = Plus (replace e x e1) (replace e x e2)"
+      by simp
+    then have "lval (replace e x (Plus e1 e2)) (s(x := lval e s))
+      = lval (replace e x e1) (s(x := lval e s)) + lval (replace e x e2) (s(x := lval e s))"
+      by simp
+    also have "... = lval e1 s + lval e2 s"
+      using local.Plus.IH local.Plus.prems x_not_in_sub sub_dist_from_e
+      by presburger
+    also have "... = lval (Plus e1 e2) s"
+      by simp
+    finally show ?thesis .
+  qed
+next
+  case (Let u l r)
+  then show ?case sorry
+qed
 
 paragraph \<open>Step 4\<close>
 
 definition linearize :: "lexp \<Rightarrow> lexp" where
  "linearize e = (let
-     exps = undefined;
-     names = undefined;
+     exps = rev (duplicates (collect e));
+     names = invent_names (length exps);
      m = zip exps names
    in fold (\<lambda>(a, x) e. Let x a (replace a x e)) m e)"
 
@@ -128,12 +162,31 @@ value "linearize (Plus (Plus (Plus (V ''a'') (N 3)) (N 4)) (Plus (V ''a'') (N 3)
 value "linearize (Plus (Plus (Plus (V ''a'') (N 3)) (N 4)) (Plus (Plus (V ''a'') (N 3)) (N 4)))
 = Let ''v'' (Plus (V ''a'') (N 3)) (Let ''vv'' (Plus (V ''v'') (N 4)) (Plus (V ''vv'') (V ''vv'')))"
 
+value "linearize (N 1)"
 paragraph \<open>(Bonus) Step 5\<close>
 
 lemma linearize_correct:
   assumes "\<forall>x. x \<in> vars_of e \<longrightarrow> CHR ''v'' \<notin> set x"
       and "bounds_of e = {}"
-  shows "lval (linearize e) s = lval e s"
+    shows "lval (linearize e) s = lval e s"
+using assms proof(induction e arbitrary: s)
+  case (N x)
+  then have "rev (duplicates (collect (N x))) = []"
+    by simp
+  then have "linearize (N x) = N x"
+    sorry
+  then show ?case
+    by simp
+next
+  case (V x)
+  then show ?case sorry
+next
+  case (Plus e1 e2)
+  then show ?case sorry
+next
+  case (Let x1a e1 e2)
+  then show ?case sorry
+qed
   sorry
 
 end
