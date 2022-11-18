@@ -3,7 +3,7 @@ theory Submission
 begin
 
 inductive path :: "('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> 'a list \<Rightarrow> bool" for E where
-  empty: "path E []" |
+  trivial: "path E [x]" |
   cont: "E a x \<Longrightarrow> path E (x#xs) \<Longrightarrow> path E (a#x#xs)"
 
 lemma path_reverse: "path E (a#x#xs) \<Longrightarrow> (E a x \<and> path E (x#xs))"
@@ -72,7 +72,7 @@ paragraph \<open>Step 2\<close>
 
 theorem lval_upd_state_same:
   "x \<notin> vars_of a \<Longrightarrow> lval a (s(x := v)) = lval a s"
-  proof(induction a arbitrary: x s v)
+  proof(induction a arbitrary: s)
     case (N x)
     then show ?case
       by simp
@@ -126,9 +126,9 @@ next
       by simp
   next
     case False
-    from local.Plus.prems have x_not_in_sub: "x \<notin> vars_of e1" "x \<notin> vars_of e2" 
+    from Plus.prems have x_not_in_sub: "x \<notin> vars_of e1" "x \<notin> vars_of e2" 
       by simp+
-    from local.Plus.prems have sub_dist_from_e: "bounds_of e1 \<inter> vars_of e = {}" "bounds_of e2 \<inter> vars_of e = {}"
+    from Plus.prems have sub_dist_from_e: "bounds_of e1 \<inter> vars_of e = {}" "bounds_of e2 \<inter> vars_of e = {}"
       by auto
     from False have "replace e x (Plus e1 e2) = Plus (replace e x e1) (replace e x e2)"
       by simp
@@ -136,7 +136,7 @@ next
       = lval (replace e x e1) (s(x := lval e s)) + lval (replace e x e2) (s(x := lval e s))"
       by simp
     also have "... = lval e1 s + lval e2 s"
-      using local.Plus.IH local.Plus.prems x_not_in_sub sub_dist_from_e
+      using Plus.IH Plus.prems x_not_in_sub sub_dist_from_e
       by presburger
     also have "... = lval (Plus e1 e2) s"
       by simp
@@ -144,7 +144,39 @@ next
   qed
 next
   case (Let u l r)
-  then show ?case sorry
+  from Let.prems(1) have x_not_in_sub: "x \<notin> vars_of l" "x \<notin> vars_of r"
+    by auto
+  from Let.prems(2) have sub_dist_from_e :
+    "bounds_of l \<inter> vars_of e = {}"
+    "bounds_of r \<inter> vars_of e = {}"
+    by auto
+  have u_not_x: "u \<noteq> x"
+    using local.Let.prems(1) by fastforce
+  then obtain s' where s'_def: "s' = s(u := lval l s)"
+    by simp
+  have
+    "lval (replace e x (Let u l r)) (s(x := lval e s))
+    = lval (Let u (replace e x l) (replace e x r)) (s(x := lval e s))"
+    by simp
+  also have
+    "... = lval (replace e x r) (s(x := lval e s, u := lval (replace e x l) (s(x := lval e s))))"
+    by simp
+  also from Let.prems have "... = lval (replace e x r) (s(x := lval e s, u := lval l s))"
+    using Let.IH(1) x_not_in_sub sub_dist_from_e 
+    by presburger
+  also from u_not_x have "... = lval (replace e x r) (s(u := lval l s, x := lval e s))"
+    by (simp add: fun_upd_twist)
+  also from s'_def have "... = lval (replace e x r) (s'(x := lval e s'))"
+    using Let.prems(2)
+    by (simp add: lval_upd_state_same)
+  also have "... = lval r s'"
+    using Let.IH(2) x_not_in_sub sub_dist_from_e
+    by blast
+  also have "... = lval r (s(u := lval l s))"
+    by (simp add: s'_def)
+  also have "... = lval (Let u l r) s"
+    by simp
+  finally show ?case .
 qed
 
 paragraph \<open>Step 4\<close>
