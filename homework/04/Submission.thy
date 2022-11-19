@@ -181,9 +181,19 @@ qed
 
 paragraph \<open>Step 4\<close>
 
+fun issubexp :: "lexp \<Rightarrow> lexp \<Rightarrow> bool" where
+  "issubexp e (N x) = (e = N x)" |
+  "issubexp e (V x) = (e = V x)" |
+  "issubexp e (Plus a b) = (if e = Plus a b then True else issubexp e a \<or> issubexp e b)" |
+  "issubexp e (Let x a b) = (if e = Let x a b then True else issubexp e a \<or> issubexp e b)"
+
+fun reorder :: "lexp list \<Rightarrow> lexp list \<Rightarrow> lexp list" where
+  "reorder [] acc = acc" |
+  "reorder (x#xs) acc = (if x \<in> set acc then reorder xs acc else (if \<exists>e \<in> set acc. issubexp x e then reorder xs (acc@[x]) else reorder xs (x#acc)))"
+
 definition linearize :: "lexp \<Rightarrow> lexp" where
  "linearize e = (let
-     exps = rev (duplicates (collect e));
+     exps = reorder (duplicates  (collect e)) [];
      names = invent_names (length exps);
      m = zip exps names
    in fold (\<lambda>(a, x) e. Let x a (replace a x e)) m e)"
@@ -191,11 +201,18 @@ definition linearize :: "lexp \<Rightarrow> lexp" where
 value "linearize (Plus (Plus (Plus (V ''a'') (N 3)) (N 4)) (Plus (V ''a'') (N 3)))
 = Let ''v'' (Plus (V ''a'') (N 3)) (Plus (Plus (V ''v'') (N 4)) (V ''v''))"
 
+
 value "linearize (Plus (Plus (Plus (V ''a'') (N 3)) (N 4)) (Plus (Plus (V ''a'') (N 3)) (N 4)))
 = Let ''v'' (Plus (V ''a'') (N 3)) (Let ''vv'' (Plus (V ''v'') (N 4)) (Plus (V ''vv'') (V ''vv'')))"
 
-value "linearize (N 1)"
+
 paragraph \<open>(Bonus) Step 5\<close>
+
+lemma reorder_distinct_gen: "distinct ys \<Longrightarrow> distinct (reorder xs ys)"
+  by(induction xs ys rule: reorder.induct, auto)
+
+lemma reorder_distinct: "distinct (reorder xs [])"
+  using reorder_distinct_gen by simp
 
 lemma linearize_correct:
   assumes "\<forall>x. x \<in> vars_of e \<longrightarrow> CHR ''v'' \<notin> set x"
@@ -203,15 +220,12 @@ lemma linearize_correct:
     shows "lval (linearize e) s = lval e s"
 using assms proof(induction e arbitrary: s)
   case (N x)
-  then have "rev (duplicates (collect (N x))) = []"
-    by simp
-  then have "linearize (N x) = N x"
-    sorry
   then show ?case
-    by simp
+    using linearize_def by simp
 next
   case (V x)
-  then show ?case sorry
+  then show ?case
+  using linearize_def by simp
 next
   case (Plus e1 e2)
   then show ?case sorry
@@ -219,6 +233,5 @@ next
   case (Let x1a e1 e2)
   then show ?case sorry
 qed
-  sorry
 
 end
