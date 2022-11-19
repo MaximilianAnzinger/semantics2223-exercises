@@ -206,7 +206,7 @@ value "linearize (Plus (Plus (Plus (V ''a'') (N 3)) (N 4)) (Plus (Plus (V ''a'')
 = Let ''v'' (Plus (V ''a'') (N 3)) (Let ''vv'' (Plus (V ''v'') (N 4)) (Plus (V ''vv'') (V ''vv'')))"
 
 
-paragraph \<open>(Bonus) Step 5\<close>
+paragraph \<open>(Bonus) Step 5\<close> (* partial *)
 
 lemma reorder_distinct_gen: "distinct ys \<Longrightarrow> distinct (reorder xs ys)"
   by(induction xs ys rule: reorder.induct, auto)
