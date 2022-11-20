@@ -216,7 +216,7 @@ lemma reorder_distinct: "distinct (reorder xs [])"
 
 lemma lval_let_same:
   assumes "x \<notin> vars_of e"
-      and "bonds_of a \<inter> bonds_of e = {}"
+      and "bounds_of e \<inter> vars_of a = {}"
     shows "lval (Let x a (replace a x e)) s = lval e s"
 using assms proof(induction e arbitrary: x a s)
   case (N x)
@@ -228,9 +228,9 @@ next
   case (Plus e1 e2)
   have "lval (Let x a (replace a x (Plus e1 e2))) s = lval (replace a x (Plus e1 e2)) (s(x := lval a s))"
     by auto
-  also from assms have "... = lval (Plus e1 e2) s"
-    using lval_replace
-    sorry
+  also from Plus.prems have "... = lval (Plus e1 e2) s"
+    using lval_replace[of "x" "Plus e1 e2" "a" "s"]
+    by simp
   then show ?case
     using calculation by presburger
 next
