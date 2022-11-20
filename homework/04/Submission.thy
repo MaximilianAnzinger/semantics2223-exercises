@@ -206,13 +206,58 @@ value "linearize (Plus (Plus (Plus (V ''a'') (N 3)) (N 4)) (Plus (Plus (V ''a'')
 = Let ''v'' (Plus (V ''a'') (N 3)) (Let ''vv'' (Plus (V ''v'') (N 4)) (Plus (V ''vv'') (V ''vv'')))"
 
 
-paragraph \<open>(Bonus) Step 5\<close> (* partial *)
+paragraph \<open>(Bonus) Step 5\<close> (* incomplete *)
 
 lemma reorder_distinct_gen: "distinct ys \<Longrightarrow> distinct (reorder xs ys)"
   by(induction xs ys rule: reorder.induct, auto)
 
 lemma reorder_distinct: "distinct (reorder xs [])"
   using reorder_distinct_gen by simp
+
+lemma lval_let_same:
+  assumes "x \<notin> vars_of e"
+      and "bonds_of a \<inter> bonds_of e = {}"
+    shows "lval (Let x a (replace a x e)) s = lval e s"
+using assms proof(induction e arbitrary: x a s)
+  case (N x)
+  then show ?case by simp
+next
+  case (V x)
+  then show ?case by simp
+next
+  case (Plus e1 e2)
+  have "lval (Let x a (replace a x (Plus e1 e2))) s = lval (replace a x (Plus e1 e2)) (s(x := lval a s))"
+    by auto
+  also from assms have "... = lval (Plus e1 e2) s"
+    using lval_replace
+    sorry
+  then show ?case
+    using calculation by presburger
+next
+  case (Let x1a e1 e2)
+  have "lval (Let x a (replace a x (Let x1a e1 e2))) s = lval (replace a x (Let x1a  e1 e2)) (s(x := lval a s))"
+    by auto
+  then show ?case sorry
+qed
+
+lemma move_linearize_in_plus: (* this one is missing *)
+  assumes "\<forall>x. x \<in> vars_of (Plus a b) \<longrightarrow> CHR ''v'' \<notin> set x"
+      and "bounds_of (Plus a b) = {}"
+    shows "lval (linearize (Plus a b)) s = lval (linearize a) s + lval (linearize b) s"
+using assms proof(induction a arbitrary: b s)
+  case (N x)
+  then show ?case
+    sorry
+next
+  case (V x)
+  then show ?case sorry
+next
+  case (Plus a1 a2)
+  then show ?case sorry
+next
+  case (Let x1a a1 a2)
+  then show ?case sorry
+qed
 
 lemma linearize_correct:
   assumes "\<forall>x. x \<in> vars_of e \<longrightarrow> CHR ''v'' \<notin> set x"
@@ -227,11 +272,20 @@ next
   then show ?case
   using linearize_def by simp
 next
-  case (Plus e1 e2)
-  then show ?case sorry
+  case (Plus a b)
+  then have "lval (linearize (Plus a b)) s = lval (linearize a) s + lval (linearize b) s"
+    using move_linearize_in_plus by simp
+  also from Plus.IH Plus.prems have "... =  lval b s + lval a s"
+    by force
+  also have "... = lval (Plus a b) s"
+    by simp
+  finally show ?case .
 next
   case (Let x1a e1 e2)
-  then show ?case sorry
+  then have "lval (linearize e) s = lval (linearize b) (s(x := lval (linearize a) s))"
+    using assms by auto
+  then show ?case
+    using Let.prems(2) by auto
 qed
 
 end
