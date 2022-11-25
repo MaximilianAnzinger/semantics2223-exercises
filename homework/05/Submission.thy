@@ -5,10 +5,10 @@ begin
 inductive ls :: "com \<Rightarrow> state \<Rightarrow> state list \<Rightarrow> state \<Rightarrow> bool" where
   Skip: "ls SKIP s [] s" |
   Assign: "(v ::= e, s) \<Rightarrow> t \<Longrightarrow> ls (v ::= e) s [] t" |
-  Seq: "(c1 ;; c2, s) \<Rightarrow> t \<Longrightarrow> ls c1 s xs t' \<Longrightarrow> ls c2 t' ys t \<Longrightarrow> ls (c1 ;; c2) s (xs@t'#ys) t" |
-  IfTrue: "bval b s \<Longrightarrow> (IF b THEN c1 ELSE c2, s) \<Rightarrow> t \<Longrightarrow> ls c1 s xs t \<Longrightarrow> ls (IF b THEN c1 ELSE c2) s xs t" |
-  IfFalse: "\<not>bval b s \<Longrightarrow> (IF b THEN c1 ELSE c2, s) \<Rightarrow> t \<Longrightarrow> ls c2 s xs t \<Longrightarrow> ls (IF b THEN c1 ELSE c2) s xs t" |
-  WhileTrue: "bval b s1 \<Longrightarrow> (c, s1) \<Rightarrow> s2 \<Longrightarrow> ls (WHILE b DO c) s2 xs s3 \<Longrightarrow> ls (WHILE b DO c) s1 (s2#xs) s3"|
+  Seq: "\<lbrakk>(c1 ;; c2, s) \<Rightarrow> t; ls c1 s xs t'; ls c2 t' ys t\<rbrakk> \<Longrightarrow> ls (c1 ;; c2) s (xs@t'#ys) t" |
+  IfTrue: "\<lbrakk>bval b s; (IF b THEN c1 ELSE c2, s) \<Rightarrow> t; ls c1 s xs t\<rbrakk> \<Longrightarrow> ls (IF b THEN c1 ELSE c2) s xs t" |
+  IfFalse: "\<lbrakk>\<not>bval b s; (IF b THEN c1 ELSE c2, s) \<Rightarrow> t; ls c2 s xs t\<rbrakk> \<Longrightarrow> ls (IF b THEN c1 ELSE c2) s xs t" |
+  WhileTrue: "\<lbrakk> bval b s1; (c, s1) \<Rightarrow> s2; ls (WHILE b DO c) s2 xs s3 \<rbrakk> \<Longrightarrow> ls (WHILE b DO c) s1 (s2#xs) s3" |
   WhileFalse: "\<not>bval b s  \<Longrightarrow> ls (WHILE b DO c) s [] s"
 
 declare ls.intros[intro]
@@ -16,43 +16,9 @@ declare ls.cases[elim]
 code_pred ls .
 
 theorem big_ls: "(c,s) \<Rightarrow> t \<Longrightarrow> \<exists>sts. ls c s sts t"
-proof(induction c arbitrary: s t)
-  case (Seq c1 c2)
-  then have "\<exists>s'. (c1, s) \<Rightarrow> s' \<and> (c2, s') \<Rightarrow> t"
-    by blast
-  with Seq.IH show ?case
-    by fast
-next
-  case (If b c1 c2)
-  then show ?case
-  proof(cases "bval b s")
-    case True
-    then have "\<exists> xs. ls c1 s xs t"
-      using If.IH(1) If.prems by force
-    then show ?thesis
-      using If.prems True by auto
-  next
-    case False
-     then have "\<exists> xs. ls c2 s xs t"
-      using If.IH(2) If.prems by force
-    then show ?thesis
-      using If.prems False by auto
-  qed
-next
-  case (While b com)
-  then show ?case
-  proof(cases "bval b s")
-    case True
-    then obtain s' where s'_def: "(com, s) \<Rightarrow> s' \<and> (WHILE b DO com, s') \<Rightarrow> t"
-      using While.prems by blast
-    then have "\<exists>xs. ls (WHILE b DO com) s' xs t"
-      sorry
-    then show ?thesis using s'_def True by auto
-  next
-    case False
-    then show ?thesis
-      using While.prems by blast
-  qed
+proof(induction c s t rule: big_step_induct)
+  case (Assign x a s)
+  then show ?case by blast
 qed auto
 
 theorem ls_big: "ls c s ss t \<Longrightarrow> (c,s) \<Rightarrow> t"
