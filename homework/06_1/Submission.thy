@@ -6,12 +6,20 @@ inductive taval :: "aexp \<Rightarrow> state \<Rightarrow> val \<Rightarrow> boo
 "taval (N i) s (Iv i)" |
 "taval (V x) s (s x)" |
 "taval a1 s (Iv i1) \<Longrightarrow> taval a2 s (Iv i2)
- \<Longrightarrow> taval (Plus a1 a2) s (Iv (i1 + i2))"
+ \<Longrightarrow> taval (Plus a1 a2) s (Iv (i1 + i2))" |
+"taval a1 s v1 \<Longrightarrow> taval a2 s v2 \<Longrightarrow> taval (Pair a1 a2) s (Pv v1 v2)" |
+"taval (Pair a1 a2) s (Pv v1 v2) \<Longrightarrow> taval (Fst (Pair a1 a2)) s v1" |
+"taval (Pair a1 a2) s (Pv v1 v2) \<Longrightarrow> taval (Snd (Pair a1 a2)) s v2"
 
 inductive_cases [elim!]:
   "taval (N i) s v"
   "taval (V x) s v"
   "taval (Plus a1 a2) s v"
+(*
+  "taval (Pair a1 a2) s (Pv v1 v2)"
+  "taval (Fst p) s v"
+  "taval (Snd p) s v"
+*)
 
 
 inductive tbval :: "bexp \<Rightarrow> state \<Rightarrow> bool \<Rightarrow> bool" where
@@ -29,19 +37,22 @@ Seq1:   "(SKIP;;c,s) \<rightarrow> (c,s)" |
 Seq2:   "(c1,s) \<rightarrow> (c1',s') \<Longrightarrow> (c1;;c2,s) \<rightarrow> (c1';;c2,s')" |
 IfTrue:  "tbval b s True \<Longrightarrow> (IF b THEN c1 ELSE c2,s) \<rightarrow> (c1,s)" |
 IfFalse: "tbval b s False \<Longrightarrow> (IF b THEN c1 ELSE c2,s) \<rightarrow> (c2,s)" |
-While:   "(WHILE b DO c,s) \<rightarrow> (IF b THEN c;; WHILE b DO c ELSE SKIP,s)"
+While:   "(WHILE b DO c,s) \<rightarrow> (IF b THEN c;; WHILE b DO c ELSE SKIP,s)" |
+Swap:   "taval (Pair a1 a2) s p \<Longrightarrow> taval (V x) s p \<Longrightarrow> (SWAP x, s) \<rightarrow> (x ::= Pair a2 a1, s)"
 
 lemmas small_step_induct = small_step.induct[split_format(complete)]
 
 inductive atyping :: "tyenv \<Rightarrow> aexp \<Rightarrow> ty \<Rightarrow> bool"
   ("(1_/ \<turnstile>/ (_ :/ _))" [50,0,50] 50) where
 Ic_ty: "\<Gamma> \<turnstile> N i : Ity" |
-V_ty: "\<Gamma> \<turnstile> V x : \<Gamma> x"
-
+V_ty: "\<Gamma> \<turnstile> V x : \<Gamma> x" |
+P_ty: "\<Gamma> \<turnstile> a1 : \<tau>\<^sub>1 \<Longrightarrow> \<Gamma> \<turnstile> a2 : \<tau>\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> Pair a1 a2 : Pty \<tau>\<^sub>1 \<tau>\<^sub>2" |
+Fst_ty: " \<Gamma> \<turnstile> p : Pty \<tau>\<^sub>1 \<tau>\<^sub>2 \<Longrightarrow>  \<Gamma> \<turnstile> Fst p : \<tau>\<^sub>1" |
+Snd_ty: " \<Gamma> \<turnstile> p : Pty \<tau>\<^sub>1 \<tau>\<^sub>2 \<Longrightarrow>  \<Gamma> \<turnstile> Snd p : \<tau>\<^sub>2"
 
 declare atyping.intros [intro!]
 inductive_cases [elim!]:
-  "\<Gamma> \<turnstile> V x : \<tau>" "\<Gamma> \<turnstile> N i : \<tau>" "\<Gamma> \<turnstile> Plus a1 a2 : \<tau>"
+  "\<Gamma> \<turnstile> V x : \<tau>" "\<Gamma> \<turnstile> N i : \<tau>" "\<Gamma> \<turnstile> Plus a1 a2 : \<tau>" (* "\<Gamma> \<turnstile> Pair a1 a2 : \<tau>" "\<Gamma> \<turnstile> Fst p : \<tau>" "\<Gamma> \<turnstile> Snd p : \<tau>" *)
 
 inductive btyping :: "tyenv \<Rightarrow> bexp \<Rightarrow> bool" (infix "\<turnstile>" 50) where
 B_ty: "\<Gamma> \<turnstile> Bc v" |
@@ -58,7 +69,8 @@ Skip_ty: "\<Gamma> \<turnstile> SKIP" |
 Assign_ty: "\<Gamma> \<turnstile> a : \<Gamma>(x) \<Longrightarrow> \<Gamma> \<turnstile> x ::= a" |
 Seq_ty: "\<Gamma> \<turnstile> c1 \<Longrightarrow> \<Gamma> \<turnstile> c2 \<Longrightarrow> \<Gamma> \<turnstile> c1;;c2" |
 If_ty: "\<Gamma> \<turnstile> b \<Longrightarrow> \<Gamma> \<turnstile> c1 \<Longrightarrow> \<Gamma> \<turnstile> c2 \<Longrightarrow> \<Gamma> \<turnstile> IF b THEN c1 ELSE c2" |
-While_ty: "\<Gamma> \<turnstile> b \<Longrightarrow> \<Gamma> \<turnstile> c \<Longrightarrow> \<Gamma> \<turnstile> WHILE b DO c"
+While_ty: "\<Gamma> \<turnstile> b \<Longrightarrow> \<Gamma> \<turnstile> c \<Longrightarrow> \<Gamma> \<turnstile> WHILE b DO c" |
+Swap_ty: "\<Gamma>(x) = Pty \<tau>\<^sub>1 \<tau>\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> SWAP x"
 
 
 declare ctyping.intros [intro!]
@@ -66,9 +78,27 @@ inductive_cases [elim!]:
   "\<Gamma> \<turnstile> x ::= a" "\<Gamma> \<turnstile> c1;;c2"
   "\<Gamma> \<turnstile> IF b THEN c1 ELSE c2"
   "\<Gamma> \<turnstile> WHILE b DO c"
+  (*"\<Gamma> \<turnstile> SWAP x"*)
 
 theorem apreservation:
   "\<Gamma> \<turnstile> a : \<tau> \<Longrightarrow> taval a s v \<Longrightarrow> \<Gamma> \<turnstile> s \<Longrightarrow> type v = \<tau>"
+proof(induction arbitrary: v rule: atyping.induct)
+  case (P_ty \<Gamma> a1 \<tau>\<^sub>1 a2 \<tau>\<^sub>2)
+  then obtain v\<^sub>1 v\<^sub>2 where "v = (Pv v\<^sub>1 v\<^sub>2)"
+    sorry
+  then show ?case using aexp.distinct sorry
+next
+  case (Fst_ty \<Gamma> p \<tau>\<^sub>1 \<tau>\<^sub>2)
+  then show ?case sorry
+next
+  case (Snd_ty \<Gamma> p \<tau>\<^sub>1 \<tau>\<^sub>2)
+  then show ?case sorry
+qed (fastforce simp: styping_def)+
+(*
+apply(induction arbitrary: v rule: atyping.induct)
+apply (fastforce simp: styping_def)+
+done
+*)
   sorry
 
 theorem aprogress: "\<Gamma> \<turnstile> a : \<tau> \<Longrightarrow> \<Gamma> \<turnstile> s \<Longrightarrow> \<exists>v. taval a s v"
