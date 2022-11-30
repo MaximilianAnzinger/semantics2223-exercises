@@ -87,7 +87,9 @@ where
 Ic_ty: "\<Gamma> \<turnstile> Ic i : Ity" |
 Rc_ty: "\<Gamma> \<turnstile> Rc r : Rty" |
 V_ty: "\<Gamma> \<turnstile> V x : \<Gamma> x" |
-Plus_ty: "\<Gamma> \<turnstile> a1 : \<tau>\<^sub>1 \<Longrightarrow> \<Gamma> \<turnstile> a2 : \<tau>\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> Plus a1 a2 : (if \<tau>\<^sub>1 = \<tau>\<^sub>2 then \<tau>\<^sub>1 else Rty)"
+Plus_ty_tt: "\<Gamma> \<turnstile> a1 : \<tau> \<Longrightarrow> \<Gamma> \<turnstile> a2 : \<tau> \<Longrightarrow> \<Gamma> \<turnstile> Plus a1 a2 : \<tau>" |
+Plus_ty_ri: "\<Gamma> \<turnstile> a1 : Rty \<Longrightarrow> \<Gamma> \<turnstile> a2 : Ity \<Longrightarrow> \<Gamma> \<turnstile> Plus a1 a2 : Rty" |
+Plus_ty_ir: "\<Gamma> \<turnstile> a1 : Ity \<Longrightarrow> \<Gamma> \<turnstile> a2 : Rty \<Longrightarrow> \<Gamma> \<turnstile> Plus a1 a2 : Rty"
 
 declare atyping.intros [intro!]
 inductive_cases [elim!]:
@@ -144,18 +146,28 @@ done
 
 lemma aprogress: "\<Gamma> \<turnstile> a : \<tau> \<Longrightarrow> \<Gamma> \<turnstile> s \<Longrightarrow> \<exists>v. taval a s v"
 proof(induction rule: atyping.induct)
-  case (Plus_ty \<Gamma> a1 t a2)
+  case (Plus_ty_tt \<Gamma> a1 t a2)
   then obtain v1 v2 where v: "taval a1 s v1" "taval a2 s v2" by blast
   show ?case
   proof (cases v1)
     case Iv
-    with Plus_ty v show ?thesis
-      by(fastforce intro: taval.intros(4) dest!: apreservation)
+    with Plus_ty_tt v show ?thesis
+      by(fastforce intro: taval.intros(4) taval.intros(7) dest!: apreservation)
   next
     case Rv
-    with Plus_ty v show ?thesis
+    with Plus_ty_tt v show ?thesis
       by(fastforce intro: taval.intros(5) dest!: apreservation)
   qed
+next
+  case (Plus_ty_ri  \<Gamma> a1 a2)
+  then obtain v1 v2 where v: "taval a1 s v1" "taval a2 s v2" by blast
+  then show ?case
+    by (metis taval.intros type.cases)
+next
+  case (Plus_ty_ir  \<Gamma> a1 a2)
+  then obtain v1 v2 where v: "taval a1 s v1" "taval a2 s v2" by blast
+  then show ?case
+    by (metis taval.intros type.cases)
 qed (auto intro: taval.intros)
 
 lemma bprogress: "\<Gamma> \<turnstile> b \<Longrightarrow> \<Gamma> \<turnstile> s \<Longrightarrow> \<exists>v. tbval b s v"
@@ -167,11 +179,11 @@ proof(induction rule: btyping.induct)
   proof (cases v1)
     case Iv
     with Less_ty v show ?thesis
-      by (fastforce intro!: tbval.intros(4) dest!:apreservation)
+      by (cases v2) (fastforce intro!: tbval.intros dest!:apreservation)+
   next
     case Rv
     with Less_ty v show ?thesis
-      by (fastforce intro!: tbval.intros(5) dest!:apreservation)
+      by (cases v2) (fastforce intro!: tbval.intros dest!:apreservation)+
   qed
 qed (auto intro: tbval.intros)
 
