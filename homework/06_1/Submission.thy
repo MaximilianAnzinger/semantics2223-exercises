@@ -68,7 +68,7 @@ Assign_ty: "\<Gamma> \<turnstile> a : \<Gamma>(x) \<Longrightarrow> \<Gamma> \<t
 Seq_ty: "\<Gamma> \<turnstile> c1 \<Longrightarrow> \<Gamma> \<turnstile> c2 \<Longrightarrow> \<Gamma> \<turnstile> c1;;c2" |
 If_ty: "\<Gamma> \<turnstile> b \<Longrightarrow> \<Gamma> \<turnstile> c1 \<Longrightarrow> \<Gamma> \<turnstile> c2 \<Longrightarrow> \<Gamma> \<turnstile> IF b THEN c1 ELSE c2" |
 While_ty: "\<Gamma> \<turnstile> b \<Longrightarrow> \<Gamma> \<turnstile> c \<Longrightarrow> \<Gamma> \<turnstile> WHILE b DO c" |
-Swap_ty: "\<Gamma> \<turnstile> V x : Pty \<tau>\<^sub>1 \<tau>\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> SWAP x"
+Swap_ty: "\<Gamma> \<turnstile> V x : Pty \<tau> \<tau> \<Longrightarrow> \<Gamma> \<turnstile> SWAP x"
 
 declare ctyping.intros [intro!]
 inductive_cases [elim!]:
@@ -134,7 +134,7 @@ next
 next
   case While_ty show ?case by (metis While)
 next
-  case (Swap_ty \<Gamma> x \<tau>\<^sub>1 \<tau>\<^sub>2)
+  case (Swap_ty \<Gamma> x \<tau>)
   then have "\<exists>v1 v2. taval (V x) s (Pv v1 v2)"
     by (metis apreservation aprogress ty.distinct(1) type.elims)
   then show ?case by(metis Swap)
@@ -151,15 +151,15 @@ theorem ctyping_preservation:
   "(c,s) \<rightarrow> (c',s') \<Longrightarrow> \<Gamma> \<turnstile> c \<Longrightarrow> \<Gamma> \<turnstile> c'"
 proof (induct rule: small_step_induct)
   case (Swap x s v1 v2)
-  then have "\<exists>\<tau>\<^sub>1 \<tau>\<^sub>2. \<Gamma> \<turnstile> V x : Pty \<tau>\<^sub>1 \<tau>\<^sub>2"
+  then have "\<exists>\<tau>. \<Gamma> \<turnstile> V x : Pty \<tau> \<tau>"
     by(auto simp: ctyping.intros) (metis V_ty)
-  then obtain \<tau>\<^sub>1 \<tau>\<^sub>2 where vty: "\<Gamma> \<turnstile> V x : Pty \<tau>\<^sub>1 \<tau>\<^sub>2"
+  then obtain \<tau> where vty: "\<Gamma> \<turnstile> V x : Pty \<tau> \<tau>"
     by presburger
-  then have "\<Gamma> \<turnstile> Fst (V x) : \<tau>\<^sub>1" "\<Gamma> \<turnstile> Snd (V x) : \<tau>\<^sub>2"
+  then have "\<Gamma> \<turnstile> Fst (V x) : \<tau>" "\<Gamma> \<turnstile> Snd (V x) : \<tau>"
     using Fst_ty Snd_ty by auto
-  then have "\<Gamma> \<turnstile> Pair (Snd (V x)) (Fst (V x)) : Pty \<tau>\<^sub>2 \<tau>\<^sub>1"
+  then have spty: "\<Gamma> \<turnstile> Pair (Snd (V x)) (Fst (V x)) : Pty \<tau> \<tau>"
     by blast
-  then show ?case apply(auto simp: ctyping.intros) sorry
+  then show ?case by(auto simp: ctyping.intros) (metis spty ty.inject)
 qed(auto simp: ctyping.intros)
 
 abbreviation small_steps :: "com * state \<Rightarrow> com * state \<Rightarrow> bool" (infix "\<rightarrow>*" 55)
