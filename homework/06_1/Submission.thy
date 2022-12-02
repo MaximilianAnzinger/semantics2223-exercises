@@ -10,6 +10,18 @@ inductive taval :: "aexp \<Rightarrow> state \<Rightarrow> val \<Rightarrow> boo
 "taval a1 s v1 \<Longrightarrow> taval a2 s v2 \<Longrightarrow> taval (Pair a1 a2) s (Pv v1 v2)" |
 "taval (Pair a1 a2) s (Pv v1 v2) \<Longrightarrow> taval (Fst (Pair a1 a2)) s v1" |
 "taval (Pair a1 a2) s (Pv v1 v2) \<Longrightarrow> taval (Snd (Pair a1 a2)) s v2"
+(*
+"taval a1 s (Iv i1) \<Longrightarrow> taval a2 s (Iv i2) \<Longrightarrow> taval (Pair a1 a2) s (Pv (Iv i1) (Iv i2))" |
+"taval a1 s (Iv i1) \<Longrightarrow> taval a2 s (Pv v1 v2) \<Longrightarrow> taval (Pair a1 a2) s (Pv (Iv i1) (Pv v1 v2))" |
+"taval a1 s (Pv v1 v2) \<Longrightarrow> taval a2 s (Iv i2) \<Longrightarrow> taval (Pair a1 a2) s (Pv (Pv v1 v2) (Iv i2))" |
+"taval a1 s (Pv v11 v12) \<Longrightarrow> taval a2 s (Pv v21 v22) \<Longrightarrow> taval (Pair a1 a2) s (Pv (Pv v11 v12) (Pv v21 v22))" |
+
+"taval (Pair a1 a2) s (Pv v1 v2) \<Longrightarrow> taval (Fst (Pair a1 a2)) s v1" |
+"taval (Pair a1 a2) s (Pv v1 v2) \<Longrightarrow> taval (Snd (Pair a1 a2)) s v2"
+
+"taval a1 s v1 \<Longrightarrow> taval (Fst (Pair a1 a2)) s v1" |
+"taval a2 s v2 \<Longrightarrow> taval (Snd (Pair a1 a2)) s v2"
+*)
 
 inductive_cases [elim!]:
   "taval (N i) s v"
@@ -38,7 +50,7 @@ Seq2:   "(c1,s) \<rightarrow> (c1',s') \<Longrightarrow> (c1;;c2,s) \<rightarrow
 IfTrue:  "tbval b s True \<Longrightarrow> (IF b THEN c1 ELSE c2,s) \<rightarrow> (c1,s)" |
 IfFalse: "tbval b s False \<Longrightarrow> (IF b THEN c1 ELSE c2,s) \<rightarrow> (c2,s)" |
 While:   "(WHILE b DO c,s) \<rightarrow> (IF b THEN c;; WHILE b DO c ELSE SKIP,s)" |
-Swap:   "taval (Pair a1 a2) s p \<Longrightarrow> taval (V x) s p \<Longrightarrow> (SWAP x, s) \<rightarrow> (x ::= Pair a2 a1, s)"
+Swap:   "taval (V x) s (Pv v1 v2) \<Longrightarrow> (SWAP x, s) \<rightarrow> (x ::= Pair (Snd (V x)) (Fst (V x)), s)"
 
 lemmas small_step_induct = small_step.induct[split_format(complete)]
 
@@ -70,8 +82,8 @@ Assign_ty: "\<Gamma> \<turnstile> a : \<Gamma>(x) \<Longrightarrow> \<Gamma> \<t
 Seq_ty: "\<Gamma> \<turnstile> c1 \<Longrightarrow> \<Gamma> \<turnstile> c2 \<Longrightarrow> \<Gamma> \<turnstile> c1;;c2" |
 If_ty: "\<Gamma> \<turnstile> b \<Longrightarrow> \<Gamma> \<turnstile> c1 \<Longrightarrow> \<Gamma> \<turnstile> c2 \<Longrightarrow> \<Gamma> \<turnstile> IF b THEN c1 ELSE c2" |
 While_ty: "\<Gamma> \<turnstile> b \<Longrightarrow> \<Gamma> \<turnstile> c \<Longrightarrow> \<Gamma> \<turnstile> WHILE b DO c" |
-Swap_ty: "\<Gamma>(x) = Pty \<tau>\<^sub>1 \<tau>\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> SWAP x"
-
+Swap_ty: "\<Gamma> \<turnstile> V x : Pty \<tau>\<^sub>1 \<tau>\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> SWAP x"
+(* Swap_ty: "\<Gamma>(x) = Pty \<tau>\<^sub>1 \<tau>\<^sub>2 \<Longrightarrow> \<Gamma> \<turnstile> SWAP x" *)
 
 declare ctyping.intros [intro!]
 inductive_cases [elim!]:
@@ -84,9 +96,7 @@ theorem apreservation:
   "\<Gamma> \<turnstile> a : \<tau> \<Longrightarrow> taval a s v \<Longrightarrow> \<Gamma> \<turnstile> s \<Longrightarrow> type v = \<tau>"
 proof(induction arbitrary: v rule: atyping.induct)
   case (P_ty \<Gamma> a1 \<tau>\<^sub>1 a2 \<tau>\<^sub>2)
-  then obtain v\<^sub>1 v\<^sub>2 where "v = (Pv v\<^sub>1 v\<^sub>2)"
-    sorry
-  then show ?case using aexp.distinct sorry
+  then show ?case  sorry
 next
   case (Fst_ty \<Gamma> p \<tau>\<^sub>1 \<tau>\<^sub>2)
   then show ?case sorry
@@ -101,10 +111,18 @@ done
 *)
   sorry
 
+thm taval.simps
 theorem aprogress: "\<Gamma> \<turnstile> a : \<tau> \<Longrightarrow> \<Gamma> \<turnstile> s \<Longrightarrow> \<exists>v. taval a s v"
+proof(induction rule: atyping.induct)
+  case (Fst_ty \<Gamma> p \<tau>\<^sub>1 \<tau>\<^sub>2)
+  then show ?case sorry
+next
+  case (Snd_ty \<Gamma> p \<tau>\<^sub>1 \<tau>\<^sub>2)
+  then show ?case sorry
+qed(auto intro: taval.intros)
   sorry
 
-theorem bprogress: "\<Gamma> \<turnstile> b \<Longrightarrow> \<Gamma> \<turnstile> s \<Longrightarrow> \<exists>v. tbval b s v"
+theorem bprogress: "\<Gamma> \<turnstile> b \<Longrightarrow> \<Gamma> \<turnstile> s \<Longrightarrow> \<exists>v. tbval b s v" nitpick
   sorry
 
 theorem progress:
