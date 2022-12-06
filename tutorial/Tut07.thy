@@ -7,10 +7,32 @@ Skip2': "\<turnstile>' SKIP : l" |
 Assign2': "sec x \<ge> sec a \<Longrightarrow> \<turnstile>' x ::= a : sec x" |
 Seq2': "\<lbrakk> \<turnstile>' c\<^sub>1 : l;  \<turnstile>' c\<^sub>2 : l \<rbrakk> \<Longrightarrow> \<turnstile>' c\<^sub>1 ;; c\<^sub>2 : l" |
 If2': "\<lbrakk> sec b \<le> l;  \<turnstile>' c\<^sub>1 : l;  \<turnstile>' c\<^sub>2 : l \<rbrakk> \<Longrightarrow> \<turnstile>' IF b THEN c\<^sub>1 ELSE c\<^sub>2 : l" |
-While2': "\<lbrakk> sec b \<le> l;  \<turnstile>' c : l \<rbrakk> \<Longrightarrow> \<turnstile>' WHILE b DO c : l" lemma "\<turnstile> c : l \<Longrightarrow> \<turnstile>' c : l"
+While2': "\<lbrakk> sec b \<le> l;  \<turnstile>' c : l \<rbrakk> \<Longrightarrow> \<turnstile>' WHILE b DO c : l" |
+Subsumption2': "\<lbrakk> \<turnstile>' c : l; l' \<le> l \<rbrakk> \<Longrightarrow> \<turnstile>' c : l'"
+
+lemma "\<turnstile> c : l \<Longrightarrow> \<turnstile>' c : l"
+proof(induction rule: sec_type2.induct)
+  case (Seq2 c\<^sub>1 l\<^sub>1 c\<^sub>2 l\<^sub>2)
+  then show ?case using Seq2' Subsumption2' by simp
+next
+  case (If2 b l\<^sub>1 l\<^sub>2 c\<^sub>1 c\<^sub>2)
+  then show ?case by (auto intro: sec_type2'.intros simp: Subsumption2')
+qed (auto intro: sec_type2'.intros)
 
 lemma "\<turnstile>' c : l \<Longrightarrow> \<exists>l' \<ge> l. \<turnstile> c : l'"
-  sorry
+proof(induction rule: sec_type2'.induct)
+  case (Seq2' c\<^sub>1 l c\<^sub>2)
+  then show ?case sorry
+next
+  case (If2' b l c\<^sub>1 c\<^sub>2)
+  then show ?case sorry
+next
+  case (While2' b l c)
+  then show ?case sorry
+next
+  case (Subsumption2' c l l')
+  then show ?case sorry
+qed (auto intro: sec_type2.intros)
 
 fun AA :: "com \<Rightarrow> (vname \<times> aexp) set \<Rightarrow> (vname \<times> aexp) set" where
   "AA SKIP A = A"
