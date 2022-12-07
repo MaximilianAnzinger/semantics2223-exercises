@@ -108,9 +108,29 @@ qed auto
 
 prop "\<lbrakk> (c,s) \<Rightarrow> s';  0 \<turnstile> c;  s = t (< l) \<rbrakk>
   \<Longrightarrow> \<exists>t'. (erase l c,t) \<Rightarrow> t' \<and> s' = t' (< l)"
-
+text \<open>
+From big_step_determ we know big_step is deterministic. Hence we don't only know about the
+existance of t' but even the exact outcome of (erase l c,t) \<Rightarrow> t'. Thus all the requirements
+to apply erase_correct are given. Hence, also s' = t' (< l) must hold.
+Therefore, this proposition holds.
+\<close>
 
 prop "\<lbrakk> (erase l c,s) \<Rightarrow> s';  0 \<turnstile> c;  s = t (< l) \<rbrakk> \<Longrightarrow> \<exists>t'. (c,t) \<Rightarrow> t'"
+text \<open>
+Counter example: An infinite loop that is erased by `erase l c`
+
+l = 0; c = WHILE (Bc True) DO SKIP; s = 0; t = 0
+
+Then:
+erase l c s = SKIP
+and
+(erase l c,s) \<Rightarrow> s = s'
+0 \<turnstile> c
+and
+s = t (< l)
+
+but no terminal state (c,t) \<Rightarrow> t' exists since c is an infinite loop.
+\<close>
 
 
 theorem well_initialized_commands:
@@ -118,7 +138,49 @@ theorem well_initialized_commands:
       and "s = s' on A"
       and "(c,s) \<Rightarrow> t"
       and "(c,s') \<Rightarrow> t'"
-  shows "t=t' on B"
-  sorry
+    shows "t=t' on B"
+using assms proof(induction arbitrary: s s' t t' rule: D.induct)
+  case (Assign a A x)
+  then have "vars a \<subseteq> A"
+    by simp
+  moreover have "D A (x ::= a) (insert x A)"
+    by (simp add: D.Assign calculation)
+  moreover have "aval a s = aval a s'"
+    using aval_eq_if_eq_on_vars \<open>s = s' on A\<close> Assign.hyps by blast
+  ultimately have "t = t' on (insert x A)" using Assign
+    by auto
+  then show ?case .
+next
+  case (If b A c\<^sub>1 A\<^sub>1 c\<^sub>2 A\<^sub>2)
+  then have "vars b \<subseteq> A" "D A c\<^sub>1 A\<^sub>1" "D A c\<^sub>2 A\<^sub>2"
+    by blast+
+  moreover have "D A (IF b THEN c\<^sub>1 ELSE c\<^sub>2) (A\<^sub>1 Int A\<^sub>2)"
+    by (simp add: D.If calculation)
+  moreover have "bval b s = bval b s'"
+    using bval_eq_if_eq_on_vars \<open>s = s' on A\<close> If.hyps by blast
+  ultimately have "t = t' on (A\<^sub>1 Int A\<^sub>2)"
+    using Assign If.IH(1) If.IH(2) If.prems(1) If.prems(2) If.prems(3) IfE by blast
+  then show ?case .
+next
+  case (While b A c A')
+  from While(5) show ?case using While
+  proof(induction "WHILE b DO c" s t arbitrary: s' t' rule: big_step_induct)
+    case (WhileFalse s)
+    have "bval b s = bval b s'"
+      using bval_eq_if_eq_on_vars \<open>s = s' on A\<close> While.hyps by blast
+    then show ?case
+      using WhileFalse.hyps WhileFalse.prems(4) WhileFalse.prems(6) by auto
+  next
+    case (WhileTrue s\<^sub>1 s\<^sub>2 s\<^sub>3)
+    have "bval b s\<^sub>1 = bval b s'"
+      using bval_eq_if_eq_on_vars \<open>s\<^sub>1 = s' on A\<close> While.hyps by blast
+    then obtain s'\<^sub>2 where "(c,s') \<Rightarrow> s'\<^sub>2" "(WHILE b DO c, s'\<^sub>2) \<Rightarrow> t'"
+      using WhileTrue.hyps(1) WhileTrue.prems(6) by auto
+    then have "s\<^sub>2 = s'\<^sub>2 on A"
+      using D_incr WhileTrue by blast
+    then show ?case
+      using WhileTrue \<open>(WHILE b DO c, s'\<^sub>2) \<Rightarrow> t'\<close> by blast
+  qed
+qed (blast)+
 
 end
