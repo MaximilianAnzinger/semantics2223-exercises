@@ -109,6 +109,8 @@ qed auto
 prop "\<lbrakk> (c,s) \<Rightarrow> s';  0 \<turnstile> c;  s = t (< l) \<rbrakk>
   \<Longrightarrow> \<exists>t'. (erase l c,t) \<Rightarrow> t' \<and> s' = t' (< l)"
 text \<open>
+From (c,s) \<Rightarrow> s' we know (c, s) terminates. With s = t (< l) also (erase l c,t) must terminate
+(erase replaces coms either by the same com or SKIP). Hence, \<exists>t'. (erase l c,t) \<Rightarrow> t'.
 From big_step_determ we know big_step is deterministic. Hence we don't only know about the
 existance of t' but even the exact outcome of (erase l c,t) \<Rightarrow> t'. Thus all the requirements
 to apply erase_correct are given. Hence, also s' = t' (< l) must hold.
