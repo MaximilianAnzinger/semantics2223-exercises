@@ -35,7 +35,7 @@ definition W :: "(state \<Rightarrow> bool) \<Rightarrow> com_den \<Rightarrow> 
   "W db dc = (\<lambda>dw. {(s,t). if db s then (s,t) \<in> dc O dw else s=t})"
 
 definition L :: "com_den \<Rightarrow> (com_den \<Rightarrow> com_den)" where
-  "L dc = (\<lambda>dl. {(s,t). (s,t) \<in> dc O dl} \<union> {(s,t). s=t})"
+  "L dc = (\<lambda>dl. {(s,t). (s,t) \<in> dc O dl} \<union> Id)"
 
 fun D :: "com \<Rightarrow> com_den" where
 "D SKIP   = Id" |
@@ -61,6 +61,21 @@ proof-
   finally show ?thesis .
 qed
 
+thm lfp_unfold
+
+lemma L_mono: "mono (L c)"
+  by (unfold L_def mono_def) auto
+
+lemma D_Loop_absorb: "D (Loop c) = D (c;;Loop c) \<union> Id"
+proof-
+  let ?l = "Loop c" let ?f = "L (D c)"
+  have "D ?l = lfp ?f" by simp
+  also have "... = ?f (lfp ?f)" by(rule lfp_unfold [OF L_mono])
+  also have "... = D c O D ?l \<union> Id" by(simp add: L_def)
+  also have "... = D (c;;?l) \<union> Id" by simp
+  finally show ?thesis .
+qed
+
 lemma D_if_big_step:  "(c,s) \<Rightarrow> t \<Longrightarrow> (s,t) \<in> D(c)"
 proof (induction rule: big_step_induct)
   case WhileFalse
@@ -70,10 +85,15 @@ next
   show ?case unfolding D_While_If using WhileTrue by auto
 next
   case (LoopBreak c s)
-  then show ?case sorry
+  then have "D (LOOP c) = lfp (L (D c))" by simp
+  then have "Id \<subseteq> lfp (L (D c))"
+    using L_def Un_subset_iff lfp_greatest
+    by (metis (no_types, lifting))
+  then show ?case
+    by (simp add: in_mono)
 next
   case (LoopContinue c s\<^sub>1 s\<^sub>2 s\<^sub>3)
-  then show ?case sorry
+  show ?case unfolding D_Loop_absorb using LoopContinue by auto
 qed auto
 
 abbreviation Big_step :: "com \<Rightarrow> com_den" where
@@ -94,15 +114,14 @@ next
     using ASSUME by auto
 next
   case (Loop c)
-  show ?case sorry
+  let ?B = "Big_step (LOOP c)" let ?f = "L (D c)"
+  have "?f ?B \<subseteq> ?B" using Loop.IH by (auto simp: L_def)
+  from lfp_lowerbound[where ?f = "?f", OF this] Loop.prems
+  show ?case by auto
 qed (auto split: if_splits)
 
 theorem denotational_is_big_step:
   "(s,t) \<in> D(c)  =  ((c,s) \<Rightarrow> t)"
 by (metis D_if_big_step Big_step_if_D[simplified])
-
-theorem denotational_is_big_step:
-  "(s,t) \<in> D(c)  =  ((c,s) \<Rightarrow> t)"
-  sorry
 
 end
