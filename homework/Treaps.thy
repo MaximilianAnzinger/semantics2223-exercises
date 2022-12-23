@@ -26,6 +26,10 @@ fun height :: "('a::linorder) treap \<Rightarrow> nat" where
   "height \<langle>\<rangle> = 0" |
   "height \<langle>l, k, p, r\<rangle> = max (height l) (height r) + 1"
 
+fun min_height :: "('a::linorder) treap \<Rightarrow> nat" where
+  "min_height \<langle>\<rangle> = 0" |
+  "min_height \<langle>l, k, p, r\<rangle> = min (height l) (height r) + 1"
+
 fun size :: "('a::linorder) treap \<Rightarrow> nat" where
   "size \<langle>\<rangle> = 0" |
   "size \<langle>l, k, p, r\<rangle> = (size l) + (size r) + 1"
@@ -120,7 +124,6 @@ proof(induction t)
   finally show ?case .
 qed(simp)
 
-
 lemma set_of_childs:
   assumes "is_distinct t"
   shows "set t - {(key t, prio t)} = set (left t) \<union> set (right t)"
@@ -132,42 +135,65 @@ using assms proof(induction t rule: set.induct)
   then show ?case by simp
 qed(simp)
 
-inductive is_search_tree :: "('a::linorder) treap \<Rightarrow> bool" where
-  Leaf: "is_search_tree \<langle>\<rangle>" |
-  Node: "\<lbrakk> is_search_tree l; is_search_tree r;
+lemma "set t \<noteq> {} \<Longrightarrow> is_distinct t \<Longrightarrow> card {(k', p') \<in> set t. k} = 1"
+  apply(induction t, auto) sledgehammer
+
+lemma pair_unique:
+  assumes "is_distinct t" 
+      and "(k\<^sub>1, p\<^sub>1)\<in> set t" "(k\<^sub>2, p\<^sub>2)\<in> set t"
+    shows "k\<^sub>1 = k\<^sub>2 \<longleftrightarrow> p\<^sub>1 = p\<^sub>2"
+using assms proof(induction t arbitrary: k\<^sub>1 p\<^sub>1 k\<^sub>2 p\<^sub>2)
+  case (Node l k p r)
+  then show ?case
+  proof(cases "p\<^sub>1 = p")
+    case True
+    then show ?thesis sorry
+  next
+    case False
+    then show ?thesis sorry
+  qed
+qed(simp)
+
+inductive is_bst :: "('a::linorder) treap \<Rightarrow> bool" where
+  Leaf: "is_bst \<langle>\<rangle>" |
+  Node: "\<lbrakk> is_bst l; is_bst r;
         \<forall>(x\<^sub>k, x\<^sub>p) \<in> set l . x\<^sub>k < k; \<forall>(x\<^sub>k, x\<^sub>p) \<in> set r . k < x\<^sub>k \<rbrakk>
-        \<Longrightarrow> is_search_tree \<langle>l, k, p, r\<rangle>"
+        \<Longrightarrow> is_bst \<langle>l, k, p, r\<rangle>"
 
 inductive is_heap :: "('a::linorder) treap \<Rightarrow> bool" where
   Leaf: "is_heap \<langle>\<rangle>" |
   Node: "\<lbrakk>is_heap l; is_heap r; prio l > p; prio r > p \<rbrakk>
         \<Longrightarrow> is_heap \<langle>l, k, p, r\<rangle>"
 
-lemma root_has_smallest_prio:
+lemma heap_root_has_smallest_prio:
   assumes "is_heap t"
-      and "prio t = p"
-    shows "\<forall>(k', p') \<in> set (left t) \<union> set (right t). p < p'"
+      and "is_distinct t"
+    shows "\<forall>(k', p') \<in> set (left t) \<union> set (right t). prio t < p'"
 using assms proof(induction t arbitrary: p rule: is_heap.induct)
   case (Node l r p k)
   obtain p\<^sub>l p\<^sub>r where p_defs: "p\<^sub>l = prio l" "p\<^sub>r = prio r" by blast
-  have "p < p\<^sub>l"
+  have p_less_pl: "p < p\<^sub>l"
     using Node.hyps(3) Node.prems p_defs(1) by auto
   moreover have "p < p\<^sub>r"
     using Node.hyps(4) Node.prems p_defs(2) by auto
   moreover have
     "\<forall>(k', p') \<in> set (left l) \<union> set (right l). p\<^sub>l < p'"
     "\<forall>(k', p') \<in> set (left r) \<union> set (right r). p\<^sub>r < p'"
-    by (simp add: Node.IH(1, 2) p_defs)+
+    using Node.IH(1, 2) Node.prems Treaps.distinct_rev p_defs by blast+
   ultimately have
     "\<forall>(k', p') \<in> set (left l) \<union> set (right l). p < p'"
     "\<forall>(k', p') \<in> set (left r) \<union> set (right r). p < p'"
     by (smt (verit, ccfv_SIG) case_prodD case_prodI2)+
-  then have "\<forall>(k', p') \<in> set l. p < p'" using \<open>p < p\<^sub>l\<close> set_def sorry
-  then show ?case sorry
+  then have
+    "\<forall>(k', p') \<in> set l. p < p'"
+    "\<forall>(k', p') \<in> set r. p < p'"
+    using p_less_pl Node.hyps(3,4) Node.prems distinct_rev set_of_childs by blast+
+  then show ?case
+    by force
 qed(simp)
 
 definition is_treap :: "('a::linorder) treap \<Rightarrow> bool" where
-  "is_treap t \<equiv> is_search_tree t \<and> is_heap t"
+  "is_treap t \<equiv> is_bst t \<and> is_heap t"
 
 lemma empty_treap_is_leaf:
 "set t = {} \<longleftrightarrow> t = \<langle>\<rangle>"
@@ -176,15 +202,10 @@ proof
   then show "t = \<langle>\<rangle>" by(cases t, auto)
 qed(simp)
 
-lemma heap_smallest_prio_root:
-  assumes "is_heap \<langle>l, k\<^sub>r, p\<^sub>r, r\<rangle>"
-  shows "\<forall>(k, p) \<in> ((set t)-{(k\<^sub>r, p\<^sub>r)}). p\<^sub>r < p"
-  apply(induction "\<langle>l, k\<^sub>r, p\<^sub>r, r\<rangle>") apply(auto) sorry
-
 lemma treap_is_unique:
-  assumes "is_treap t\<^sub>1"
-      and "is_treap t\<^sub>2"
-      and "set t\<^sub>1 = set t\<^sub>2"
+  assumes distinct:      "is_distinct t\<^sub>1" "is_distinct t\<^sub>2"
+      and treaps:        "is_treap t\<^sub>1" "is_treap t\<^sub>2"
+      and equal_entries: "set t\<^sub>1 = set t\<^sub>2"
     shows "t\<^sub>1 = t\<^sub>2"
 using assms proof(induction t\<^sub>1 arbitrary: t\<^sub>2 rule:treap.induct)
   case Leaf
@@ -197,12 +218,33 @@ using assms proof(induction t\<^sub>1 arbitrary: t\<^sub>2 rule:treap.induct)
 next
   case (Node l\<^sub>1 k\<^sub>1 p\<^sub>1 r\<^sub>1)
   let ?t\<^sub>1 = "\<langle>l\<^sub>1, k\<^sub>1, p\<^sub>1, r\<^sub>1\<rangle>"
+  let ?entries = "set ?t\<^sub>1"
   have not_leaf: "t\<^sub>2 \<noteq> \<langle>\<rangle>"
-    using Node.prems(3) by force
+    using Node.prems(5) by force
   then obtain l\<^sub>2 k\<^sub>2 p\<^sub>2 r\<^sub>2 where t2_def: "t\<^sub>2 = \<langle>l\<^sub>2, k\<^sub>2, p\<^sub>2, r\<^sub>2\<rangle>"
     using height.cases by blast
+  let ?t\<^sub>2 = "\<langle>l\<^sub>2, k\<^sub>2, p\<^sub>2, r\<^sub>2\<rangle>"
   have "is_treap l\<^sub>2" "is_treap r\<^sub>2"
-    using Node.prems(2) is_heap.cases is_search_tree.cases is_treap_def t2_def by fastforce+
+    using Node.prems(4) is_heap.cases is_bst.cases is_treap_def t2_def by fastforce+
+  
+  have "\<forall>(k', p') \<in> set (left ?t\<^sub>1) \<union> set (right ?t\<^sub>1). prio ?t\<^sub>1 < p'"
+    using Node.prems(1, 3) heap_root_has_smallest_prio is_treap_def by blast
+  then have "\<forall>(k', p') \<in> ?entries - {(k\<^sub>1, p\<^sub>1)}. prio ?t\<^sub>1 < p'"
+    by simp
+  then have "\<forall>(k', p') \<in> ?entries - {(k\<^sub>1, p\<^sub>1)}. prio ?t\<^sub>1 \<le> p'"
+    using less_imp_le by blast
+  then have "\<forall>(k', p') \<in> set ?t\<^sub>1. prio ?t\<^sub>1 \<le> p'" by auto
+  moreover have "\<forall>(k', p') \<in> set (left ?t\<^sub>2) \<union> set (right ?t\<^sub>2). prio ?t\<^sub>2 < p'"
+    using Node.prems(2, 4) heap_root_has_smallest_prio is_treap_def t2_def by blast
+  then have "\<forall>(k', p') \<in> set ?t\<^sub>2 - {(k\<^sub>2, p\<^sub>2)}. prio ?t\<^sub>2 < p'"
+    by simp
+  then have "\<forall>(k', p') \<in> set ?t\<^sub>2 - {(k\<^sub>2, p\<^sub>2)}. prio ?t\<^sub>2 \<le> p'"
+    using less_imp_le by blast
+  then have "\<forall>(k', p') \<in> ?entries. prio ?t\<^sub>2 \<le> p'"
+    using Node.prems(5) t2_def by auto
+  ultimately have equal_prio:  "p\<^sub>1 = p\<^sub>2"  sorry
+  have ""
+  then have "k\<^sub>1 = k\<^sub>2" using Node.prems(1, 2) sorry
   have "\<forall>(k, p) \<in> ((set t\<^sub>2)-{(k\<^sub>2, p\<^sub>2)}). p\<^sub>2 < p" sorry
   have "set l\<^sub>1 = set l\<^sub>2" sorry
   with Node show ?case sorry
