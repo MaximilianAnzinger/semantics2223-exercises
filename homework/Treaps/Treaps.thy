@@ -1,5 +1,5 @@
 theory Treaps
-  imports Main "HOL-IMP.Com" "HOL.Complex"
+  imports Main "HOL.Real"
 begin
 
 datatype ('a::linorder) treap =
@@ -38,17 +38,7 @@ fun set :: "('a::linorder) treap \<Rightarrow> ('a \<times> real) set" where
   Leaf: "set \<langle>\<rangle> = {}" |
   Node: "set \<langle>l, k, p, r\<rangle> = {(k, p)} \<union> set l \<union> set r"
 
-fun keys :: "('a::linorder) treap \<Rightarrow> 'a set" where
-  "keys \<langle>\<rangle> = {}" |
-  "keys \<langle>l, k, p, r\<rangle> = {k} \<union> keys l \<union> keys r"
-
-fun prios :: "('a::linorder) treap \<Rightarrow> real set" where
-  "prios \<langle>\<rangle> = {}" |
-  "prios \<langle>l, k, p, r\<rangle> = {p} \<union> prios l \<union> prios r"
-
 lemma set_finite: "finite (set t)" by(induction t, auto)
-lemma keys_finite: "finite (keys t)" by(induction t, auto)
-lemma prios_finite: "finite (prios t)" by(induction t, auto)
 
 inductive child_of :: "('a::linorder) treap \<Rightarrow> ('a::linorder) treap \<Rightarrow> bool" where
   Left: "child_of l \<langle>l, k, p, r\<rangle>" |
@@ -158,31 +148,12 @@ using assms proof(induction t rule: set.induct)
   then show ?case by simp
 qed(simp)
 
-lemma pair_unique:
-  assumes "is_distinct t" 
-      and "(k\<^sub>1, p\<^sub>1)\<in> set t" "(k\<^sub>2, p\<^sub>2)\<in> set t"
-    shows "k\<^sub>1 = k\<^sub>2 \<longleftrightarrow> p\<^sub>1 = p\<^sub>2"
-proof
-  show "k\<^sub>1 = k\<^sub>2 \<Longrightarrow> p\<^sub>1 = p\<^sub>2"
-  using assms proof(induction t arbitrary: k\<^sub>1 p\<^sub>1 k\<^sub>2 p\<^sub>2)
-    case (Node l k p r)
-    then show ?case
-    using assms proof(cases "p\<^sub>1 = p\<^sub>2")
-      case False
-      then show "k\<^sub>1 = k\<^sub>2 \<Longrightarrow> p\<^sub>1 = p\<^sub>2" using assms sorry
-    qed(simp)
-  qed(simp)
-next
-  show "p\<^sub>1 = p\<^sub>2 \<Longrightarrow> k\<^sub>1 = k\<^sub>2" sorry
-  oops
-
 inductive is_bst :: "('a::linorder) treap \<Rightarrow> bool" where
   Leaf: "is_bst \<langle>\<rangle>" |
   Node: "\<lbrakk> is_bst l; is_bst r;
         \<forall>(x\<^sub>k, x\<^sub>p) \<in> set l. x\<^sub>k < k; \<forall>(x\<^sub>k, x\<^sub>p) \<in> set r. k < x\<^sub>k \<rbrakk>
         \<Longrightarrow> is_bst \<langle>l, k, p, r\<rangle>"
 
-thm is_bst.induct
 lemma bst_rev:
   "is_bst \<langle>l, k, p, r\<rangle> \<Longrightarrow> is_bst l \<and> is_bst r \<and> (\<forall>(x\<^sub>k, x\<^sub>p) \<in> set l . x\<^sub>k < k) \<and> (\<forall>(x\<^sub>k, x\<^sub>p) \<in> set r . k < x\<^sub>k)"
   by(induction "\<langle>l, k, p, r\<rangle>" rule: is_bst.induct, blast)
@@ -348,6 +319,46 @@ next
 
   from left_subtrees_eq right_subtrees_eq show ?case
     by (simp add: roots_eq_keys roots_eq_prios t2_def)
+qed
+
+fun bst_insert :: "('a::linorder) \<Rightarrow> real \<Rightarrow> 'a treap \<Rightarrow> 'a treap" where
+  "bst_insert k p \<langle>\<rangle> = \<langle>\<langle>\<rangle>, k, p, \<langle>\<rangle>\<rangle>" |
+  "bst_insert k p \<langle>l, k', p', r\<rangle> = (if k < k' then \<langle>bst_insert k p l, k', p', r\<rangle> else \<langle>l, k', p', bst_insert k p r\<rangle>)"
+
+lemma bst_insert_correct: "is_bst t \<Longrightarrow> set (bst_insert k p t) = set t \<union> {(k, p)}"
+apply(induction t arbitrary: k p rule: is_bst.induct) by(cases "k < k'", auto)
+
+lemma "is_bst t \<Longrightarrow> distinct_keys t \<Longrightarrow> is_bst (bst_insert k p t)"
+proof(induction t arbitrary: k p rule: is_bst.induct)
+  case Leaf
+  let ?r = "\<langle>\<langle>\<rangle>, k, p, \<langle>\<rangle>\<rangle>"
+  have "is_bst \<langle>\<rangle>" using is_bst.Leaf by simp
+  moreover have "set \<langle>\<rangle> = {}" by simp
+  then show ?case apply(auto) sorry
+next
+  case (Node l r k' p')
+  have "distinct_keys l" "distinct_keys r"
+    using Node.prems distinct_keys.simps by force+
+  then have ih: "is_bst (bst_insert k p l)" "is_bst (bst_insert k p r)"
+    by (auto simp: Node.IH(1,2))
+  then show ?case
+  proof(cases "k < k'")
+    case True
+    have "\<forall>(x\<^sub>k, x\<^sub>p) \<in> set l. x\<^sub>k < k'"
+      by (simp add: Node.hyps(3))
+    then have "\<forall>(x\<^sub>k, x\<^sub>p) \<in> set (bst_insert k p l). x\<^sub>k < k'"
+      by (simp add: Node.hyps(1) True bst_insert_correct)
+    then show ?thesis
+      using Node.hyps(2,4) True bst_insert.simps(2) ih(1) is_bst.Node by force
+  next
+    case False
+    then have "k' < k" sledgehammer
+    have "\<forall>(x\<^sub>k, x\<^sub>p) \<in> set r. k' < x\<^sub>k"
+      by (simp add: Node.hyps(4))
+    then have "\<forall>(x\<^sub>k, x\<^sub>p) \<in> set (bst_insert k p r).k' < x\<^sub>k"
+      by (simp add: Node.hyps(1) False bst_insert_correct)
+    then show ?thesis sorry
+  qed
 qed
 
 end
