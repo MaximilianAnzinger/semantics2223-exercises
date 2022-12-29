@@ -365,10 +365,10 @@ fun bst_insert :: "('a::linorder) \<Rightarrow> real \<Rightarrow> 'a treap \<Ri
   "bst_insert k p \<langle>\<rangle> = \<langle>\<langle>\<rangle>, k, p, \<langle>\<rangle>\<rangle>" |
   "bst_insert k p \<langle>l, k', p', r\<rangle> = (if k < k' then \<langle>bst_insert k p l, k', p', r\<rangle> else \<langle>l, k', p', bst_insert k p r\<rangle>)"
 
-lemma bst_insert_correct: "is_bst t \<Longrightarrow> set (bst_insert k p t) = set t \<union> {(k, p)}"
+lemma bst_insert_inserts: "is_bst t \<Longrightarrow> set (bst_insert k p t) = set t \<union> {(k, p)}"
   by(induction t arbitrary: k p rule: is_bst.induct, cases "k < k'", auto)
 
-lemma "is_bst t \<Longrightarrow>\<forall>p. (k, p) \<notin> set t \<Longrightarrow> is_bst (bst_insert k p t)"
+lemma bst_insert_maintains_inv: "is_bst t \<Longrightarrow>\<forall>p. (k, p) \<notin> set t \<Longrightarrow> is_bst (bst_insert k p t)"
 proof(induction t arbitrary: k p rule: is_bst.induct)
   case (Node l r k' p')
   then have "k \<noteq> k'" by auto
@@ -380,7 +380,7 @@ proof(induction t arbitrary: k p rule: is_bst.induct)
     from True have "bst_insert k p \<langle>l, k', p', r\<rangle> = \<langle>bst_insert k p l, k', p', r\<rangle>" by simp
     moreover have "\<forall>(x\<^sub>k, x\<^sub>p) \<in> set l. x\<^sub>k < k'" by (simp add: Node.hyps(3))
     then have "\<forall>(x\<^sub>k, x\<^sub>p) \<in> set (bst_insert k p l). x\<^sub>k < k'"
-      by (simp add: Node.hyps(1) True bst_insert_correct)
+      by (simp add: Node.hyps(1) True bst_insert_inserts)
     ultimately show ?thesis
       by (simp add: Node.hyps(2) Node.hyps(4) is_bst.Node lih)
   next
@@ -391,7 +391,7 @@ proof(induction t arbitrary: k p rule: is_bst.induct)
     from False have "bst_insert k p \<langle>l, k', p', r\<rangle> = \<langle>l, k', p', bst_insert k p r\<rangle>" by simp
     moreover have "\<forall>(x\<^sub>k, x\<^sub>p) \<in> set r. k' < x\<^sub>k" by (simp add: Node.hyps(4))
     then have "\<forall>(x\<^sub>k, x\<^sub>p) \<in> set (bst_insert k p r). k' < x\<^sub>k"
-      by (simp add: Node.hyps(2) \<open>k' < k\<close> bst_insert_correct)
+      by (simp add: Node.hyps(2) \<open>k' < k\<close> bst_insert_inserts)
     ultimately show ?thesis
       by (simp add: Node.hyps(1) Node.hyps(3) is_bst.Node rih)
   qed
@@ -401,12 +401,12 @@ fun search :: "('a::linorder) \<Rightarrow> 'a treap \<Rightarrow> bool" where
   "search k \<langle>\<rangle> = False" |
   "search k \<langle>l, k', _, r\<rangle> = (if k = k' then True else if k < k' then search k l else search k r)"
 
-lemma search_correct1: "is_bst t \<Longrightarrow> \<exists>p. (k, p) \<in> set t \<Longrightarrow> search k t"
+lemma search_correct_if_exists: "is_bst t \<Longrightarrow> \<exists>p. (k, p) \<in> set t \<Longrightarrow> search k t"
   by(induction t arbitrary: k rule: is_bst.induct, auto)
-lemma search_correct2: "is_bst t \<Longrightarrow> \<forall>p. (k, p) \<notin> set t \<Longrightarrow> \<not>search k t"
+lemma search_correct_if_not_exists: "is_bst t \<Longrightarrow> \<forall>p. (k, p) \<notin> set t \<Longrightarrow> \<not>search k t"
   by(induction t arbitrary: k rule: is_bst.induct, auto)
 lemma search_correct: "is_bst t \<Longrightarrow> search k t \<longleftrightarrow> (\<exists>p. (k, p) \<in> set t)"
-  using search_correct1 search_correct2 by blast
+  using search_correct_if_exists search_correct_if_not_exists by blast
 
 
 fun insert_prio :: "('a::linorder) \<Rightarrow> real \<Rightarrow> 'a treap \<Rightarrow> 'a treap" where
