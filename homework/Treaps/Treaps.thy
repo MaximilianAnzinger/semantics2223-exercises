@@ -12,7 +12,7 @@ primrec key :: "('a::linorder) treap \<Rightarrow> 'a" where
 
 primrec prio :: "('a::linorder) treap \<Rightarrow> real" where
   "prio \<langle>l, k, p, r\<rangle> = p" |
-  "prio \<langle>\<rangle> = undefined"
+  "prio \<langle>\<rangle> = 1"
 
 primrec left :: "('a::linorder) treap \<Rightarrow> 'a treap" where
   "left \<langle>l, k, p, r\<rangle> = l" |
@@ -39,6 +39,12 @@ fun set :: "('a::linorder) treap \<Rightarrow> ('a \<times> real) set" where
   Node: "set \<langle>l, k, p, r\<rangle> = {(k, p)} \<union> set l \<union> set r"
 
 lemma set_finite: "finite (set t)" by(induction t, auto)
+lemma child_subset: "set (left t) \<subseteq> set t" "set (right t) \<subseteq> set t" by(induction t, auto)
+lemma not_in_set_not_in_tree:
+  assumes "t \<noteq> \<langle>\<rangle>"
+      and "(k, p) \<notin> set t"
+    shows "(k, p) \<noteq> (key t, prio t) \<and> (k, p) \<notin> set (left t) \<and> (k, p) \<notin> set (right t)"
+  using assms by(induction t, auto)
 
 inductive child_of :: "('a::linorder) treap \<Rightarrow> ('a::linorder) treap \<Rightarrow> bool" where
   Left: "child_of l \<langle>l, k, p, r\<rangle>" |
@@ -158,6 +164,19 @@ lemma bst_rev:
   "is_bst \<langle>l, k, p, r\<rangle> \<Longrightarrow> is_bst l \<and> is_bst r \<and> (\<forall>(x\<^sub>k, x\<^sub>p) \<in> set l . x\<^sub>k < k) \<and> (\<forall>(x\<^sub>k, x\<^sub>p) \<in> set r . k < x\<^sub>k)"
   by(induction "\<langle>l, k, p, r\<rangle>" rule: is_bst.induct, blast)
 
+lemma uni_bst[simp]: "is_bst \<langle>\<langle>\<rangle>, k, p, \<langle>\<rangle>\<rangle>"
+proof-
+  let ?l = "\<langle>\<rangle>" let ?r = "\<langle>\<rangle>"
+  have "set \<langle>\<rangle> = {}" by simp
+  have "is_bst ?l" by (simp add: is_bst.Leaf)
+  moreover have "is_bst ?r" by (simp add: is_bst.Leaf)
+  moreover have "\<forall>(x\<^sub>k, x\<^sub>p) \<in> set ?l. x\<^sub>k < k" by simp
+  moreover have "\<forall>(x\<^sub>k, x\<^sub>p) \<in> set ?r. k < x\<^sub>k" by simp
+  ultimately have "is_bst \<langle>?l, k, p, ?r\<rangle>"
+    using is_bst.simps by fastforce
+  then show "is_bst \<langle>\<langle>\<rangle>, k, p, \<langle>\<rangle>\<rangle>" by simp
+qed
+
 lemma smaller_key_is_left_child:
   assumes "is_bst t"
 and "is_distinct t"
@@ -172,10 +191,31 @@ and "is_distinct t"
 shows "key t < k \<Longrightarrow> (k, d) \<in> set (right t)"
   using assms by(induction t arbitrary: k d rule: is_bst.induct, auto)
 
+definition is_valid_prio :: "real \<Rightarrow> bool" where
+  "is_valid_prio p \<equiv> 0 < p \<and> p < 1"
+
 inductive is_heap :: "('a::linorder) treap \<Rightarrow> bool" where
   Leaf: "is_heap \<langle>\<rangle>" |
-  Node: "\<lbrakk>is_heap l; is_heap r; prio l > p; prio r > p \<rbrakk>
+  Node: "\<lbrakk>is_heap l; is_heap r; prio l > p; prio r > p; is_valid_prio p \<rbrakk>
         \<Longrightarrow> is_heap \<langle>l, k, p, r\<rangle>"
+
+lemma uni_heap[simp]: "is_valid_prio p \<Longrightarrow> is_heap \<langle>\<langle>\<rangle>, k, p, \<langle>\<rangle>\<rangle>"
+proof-
+  assume p_valid: "is_valid_prio p"
+  let ?l = "\<langle>\<rangle>" let ?r = "\<langle>\<rangle>"
+  have "set \<langle>\<rangle> = {}" by simp
+  have "is_heap ?l" by (simp add: is_heap.Leaf)
+  moreover have "is_heap ?r" by (simp add: is_heap.Leaf)
+  moreover have "prio ?l = 1"
+    by simp
+  then have "prio ?l > p" using p_valid by (simp add: is_valid_prio_def)
+  moreover have "prio ?r = 1"
+    by simp
+  then have "prio ?r > p" using p_valid by (simp add: is_valid_prio_def)
+  ultimately have "is_heap \<langle>?l, k, p, ?r\<rangle>"
+    using is_heap.Node p_valid by blast
+  then show "is_heap \<langle>\<langle>\<rangle>, k, p, \<langle>\<rangle>\<rangle>" by simp
+qed
 
 lemma heap_root_has_smallest_prio:
   assumes "is_heap t"
@@ -326,37 +366,81 @@ fun bst_insert :: "('a::linorder) \<Rightarrow> real \<Rightarrow> 'a treap \<Ri
   "bst_insert k p \<langle>l, k', p', r\<rangle> = (if k < k' then \<langle>bst_insert k p l, k', p', r\<rangle> else \<langle>l, k', p', bst_insert k p r\<rangle>)"
 
 lemma bst_insert_correct: "is_bst t \<Longrightarrow> set (bst_insert k p t) = set t \<union> {(k, p)}"
-apply(induction t arbitrary: k p rule: is_bst.induct) by(cases "k < k'", auto)
+  by(induction t arbitrary: k p rule: is_bst.induct, cases "k < k'", auto)
 
-lemma "is_bst t \<Longrightarrow> distinct_keys t \<Longrightarrow> is_bst (bst_insert k p t)"
+lemma "is_bst t \<Longrightarrow>\<forall>p. (k, p) \<notin> set t \<Longrightarrow> is_bst (bst_insert k p t)"
 proof(induction t arbitrary: k p rule: is_bst.induct)
-  case Leaf
-  let ?r = "\<langle>\<langle>\<rangle>, k, p, \<langle>\<rangle>\<rangle>"
-  have "is_bst \<langle>\<rangle>" using is_bst.Leaf by simp
-  moreover have "set \<langle>\<rangle> = {}" by simp
-  then show ?case apply(auto) sorry
-next
   case (Node l r k' p')
-  have "distinct_keys l" "distinct_keys r"
-    using Node.prems distinct_keys.simps by force+
-  then have ih: "is_bst (bst_insert k p l)" "is_bst (bst_insert k p r)"
-    by (auto simp: Node.IH(1,2))
+  then have "k \<noteq> k'" by auto
   then show ?case
   proof(cases "k < k'")
     case True
-    have "\<forall>(x\<^sub>k, x\<^sub>p) \<in> set l. x\<^sub>k < k'"
-      by (simp add: Node.hyps(3))
+    then have "\<forall>p. (k, p) \<notin> set l" using Node.prems by auto
+    then have lih: "is_bst (bst_insert k p l)" by (simp add: Node.IH(1))
+    from True have "bst_insert k p \<langle>l, k', p', r\<rangle> = \<langle>bst_insert k p l, k', p', r\<rangle>" by simp
+    moreover have "\<forall>(x\<^sub>k, x\<^sub>p) \<in> set l. x\<^sub>k < k'" by (simp add: Node.hyps(3))
     then have "\<forall>(x\<^sub>k, x\<^sub>p) \<in> set (bst_insert k p l). x\<^sub>k < k'"
       by (simp add: Node.hyps(1) True bst_insert_correct)
-    then show ?thesis
-      using Node.hyps(2,4) True bst_insert.simps(2) ih(1) is_bst.Node by force
+    ultimately show ?thesis
+      by (simp add: Node.hyps(2) Node.hyps(4) is_bst.Node lih)
   next
     case False
-    then have "k' < k" sledgehammer
-    have "\<forall>(x\<^sub>k, x\<^sub>p) \<in> set r. k' < x\<^sub>k"
-      by (simp add: Node.hyps(4))
-    then have "\<forall>(x\<^sub>k, x\<^sub>p) \<in> set (bst_insert k p r).k' < x\<^sub>k"
-      by (simp add: Node.hyps(1) False bst_insert_correct)
+    then have "k' < k" using \<open>k \<noteq> k'\<close> by auto
+    then have "\<forall>p. (k, p) \<notin> set r" using Node.prems by auto
+    then have rih: "is_bst (bst_insert k p r)" by (simp add: Node.IH(2))
+    from False have "bst_insert k p \<langle>l, k', p', r\<rangle> = \<langle>l, k', p', bst_insert k p r\<rangle>" by simp
+    moreover have "\<forall>(x\<^sub>k, x\<^sub>p) \<in> set r. k' < x\<^sub>k" by (simp add: Node.hyps(4))
+    then have "\<forall>(x\<^sub>k, x\<^sub>p) \<in> set (bst_insert k p r). k' < x\<^sub>k"
+      by (simp add: Node.hyps(2) \<open>k' < k\<close> bst_insert_correct)
+    ultimately show ?thesis
+      by (simp add: Node.hyps(1) Node.hyps(3) is_bst.Node rih)
+  qed
+qed(simp)
+
+fun search :: "('a::linorder) \<Rightarrow> 'a treap \<Rightarrow> bool" where
+  "search k \<langle>\<rangle> = False" |
+  "search k \<langle>l, k', _, r\<rangle> = (if k = k' then True else if k < k' then search k l else search k r)"
+
+lemma search_correct1: "is_bst t \<Longrightarrow> \<exists>p. (k, p) \<in> set t \<Longrightarrow> search k t"
+  by(induction t arbitrary: k rule: is_bst.induct, auto)
+lemma search_correct2: "is_bst t \<Longrightarrow> \<forall>p. (k, p) \<notin> set t \<Longrightarrow> \<not>search k t"
+  by(induction t arbitrary: k rule: is_bst.induct, auto)
+lemma search_correct: "is_bst t \<Longrightarrow> search k t \<longleftrightarrow> (\<exists>p. (k, p) \<in> set t)"
+  using search_correct1 search_correct2 by blast
+
+
+fun insert_prio :: "('a::linorder) \<Rightarrow> real \<Rightarrow> 'a treap \<Rightarrow> 'a treap" where
+  "insert_prio k p \<langle>\<rangle> = \<langle>\<langle>\<rangle>, k, p, \<langle>\<rangle>\<rangle>" |
+  "insert_prio k p \<langle>l\<^sub>r, k\<^sub>r, p\<^sub>r, r\<^sub>r\<rangle> =
+    (if k < k\<^sub>r then
+      (case insert_prio k p l\<^sub>r of
+        \<langle>l\<^sub>c, k\<^sub>c, p\<^sub>c, r\<^sub>c\<rangle> \<Rightarrow>
+          (if p\<^sub>r > p\<^sub>c then \<langle>l\<^sub>c, k\<^sub>c, p\<^sub>c, \<langle>r\<^sub>c, k\<^sub>r, p\<^sub>r, r\<^sub>r\<rangle>\<rangle>
+          else \<langle>\<langle>l\<^sub>c, k\<^sub>c, p\<^sub>c, r\<^sub>c\<rangle>, k\<^sub>r, p\<^sub>r, r\<^sub>r\<rangle>) |
+        _ \<Rightarrow> undefined)
+    else
+      (case insert_prio k p r\<^sub>r of
+        \<langle>l\<^sub>c, k\<^sub>c, p\<^sub>c, r\<^sub>c\<rangle> \<Rightarrow>
+          (if p\<^sub>r > p\<^sub>c then\<langle>\<langle>l\<^sub>r, k\<^sub>r, p\<^sub>r, l\<^sub>c\<rangle>, k\<^sub>c, p\<^sub>c, r\<^sub>c\<rangle>
+          else \<langle>l\<^sub>r, k\<^sub>r, p\<^sub>r, \<langle>l\<^sub>c, k\<^sub>c, p\<^sub>c, r\<^sub>c\<rangle>\<rangle>) |
+        _ \<Rightarrow> undefined)
+    )"
+
+lemma insert_prio_correct:
+  "is_treap t \<Longrightarrow> is_valid_prio p \<Longrightarrow> \<forall>p. (k, p) \<notin> set t \<Longrightarrow> \<forall>k. (k, p) \<notin> set t \<Longrightarrow> is_treap (insert_prio k p t)"
+proof(induction t arbitrary: k p)
+  case Leaf
+  then show ?case by (simp add: is_treap_def)
+next
+  case (Node l k' p' r)
+  then have "k \<noteq> k'" by auto
+  then show ?case
+  proof(cases "k < k'")
+    case True
+    then show ?thesis sorry
+  next
+    case False
+    then have "k' < k" using \<open>k \<noteq> k'\<close> by auto
     then show ?thesis sorry
   qed
 qed
