@@ -1,5 +1,5 @@
 theory Treaps
-  imports Main "HOL.Real"
+  imports Main "HOL.Real" "HOL.List"
 begin
 
 datatype ('a::linorder) treap =
@@ -368,7 +368,7 @@ fun bst_insert :: "('a::linorder) \<Rightarrow> real \<Rightarrow> 'a treap \<Ri
 lemma bst_insert_inserts: "is_bst t \<Longrightarrow> set (bst_insert k p t) = set t \<union> {(k, p)}"
   by(induction t arbitrary: k p rule: is_bst.induct, cases "k < k'", auto)
 
-lemma bst_insert_maintains_inv: "is_bst t \<Longrightarrow>\<forall>p. (k, p) \<notin> set t \<Longrightarrow> is_bst (bst_insert k p t)"
+lemma bst_insert_maintains__inv: "is_bst t \<Longrightarrow> \<forall>p. (k, p) \<notin> set t \<Longrightarrow> is_bst (bst_insert k p t)"
 proof(induction t arbitrary: k p rule: is_bst.induct)
   case (Node l r k' p')
   then have "k \<noteq> k'" by auto
@@ -397,17 +397,84 @@ proof(induction t arbitrary: k p rule: is_bst.induct)
   qed
 qed(simp)
 
+lemma bst_insert_not_modify_inner_nodes:
+  "is_bst t \<Longrightarrow> \<forall>p. (k, p) \<notin> set t"
+  oops
+
+lemma 
+  assumes "is_heap t"
+      and "is_bst t"
+      and "\<forall>p'. (k, p') \<notin> set t"
+      and "\<forall>(k', p') \<in> set t. p' < p"
+      and "is_valid_prio p"
+    shows "is_heap (bst_insert k p t)"
+using assms proof(induction t arbitrary: k p rule: is_heap.induct)
+  case (Node l r p' k')
+  then have "k \<noteq> k'" by auto
+  then show ?case
+  proof(cases "k < k'")
+    case True
+    have  "is_heap (bst_insert k p l)"
+     using Node.IH(1) Node.prems(1,2,4) bst_rev by (force simp: Node.prems(3))
+    from True have "bst_insert k p \<langle>l, k', p', r\<rangle> = \<langle>bst_insert k p l, k', p', r\<rangle>" by simp
+    obtain l\<^sub>r k\<^sub>r p\<^sub>r r\<^sub>r where "bst_insert k p l = \<langle>l\<^sub>r, k\<^sub>r, p\<^sub>r, r\<^sub>r\<rangle>"
+      by (smt (verit, best) bst_insert.elims)
+    let ?lin = "\<langle>l\<^sub>r, k\<^sub>r, p\<^sub>r, r\<^sub>r\<rangle>"
+    have "\<forall>(k, p) \<in> set ?lin. p\<^sub>r \<le> p" sorry
+    then have "p\<^sub>r > p'" sorry
+    then show ?thesis sorry
+  next
+    case False
+    then have "k' < k" using \<open>k \<noteq> k'\<close> by auto
+    have "is_heap (bst_insert k p r)"
+      using Node.IH(2) Node.prems(1,2,4) bst_rev by (force simp: Node.prems(3))
+    then show ?thesis sorry
+  qed
+qed(simp)
+
+
+lemma 
+  assumes "sorted_wrt (\<lambda> (k\<^sub>1, p\<^sub>1) (k\<^sub>2, p\<^sub>2). p\<^sub>1 < p\<^sub>2) l"
+      and "\<forall>(k\<^sub>1, p\<^sub>1) \<in> List.set l. \<forall> (k\<^sub>2, p\<^sub>2) \<in> List.set l. k\<^sub>1 = k\<^sub>2 \<longleftrightarrow> p\<^sub>1 = p\<^sub>2"
+      and "\<forall>(k, p) \<in> List.set l. is_valid_prio p"
+      and "t = foldl (\<lambda> t (k, p). bst_insert k p t) \<langle>\<rangle> l"
+    shows "is_treap t"
+  using assms proof(induction l)
+  case Nil
+  then show ?case
+    using is_bst.Leaf is_heap.Leaf is_treap_def by auto
+next
+  case (Cons a l)
+  then show ?case sorry
+qed
+  sorry
+
+lemma
+  assumes "sorted_wrt (\<lambda> (k\<^sub>1, p\<^sub>1) (k\<^sub>2, p\<^sub>2). p\<^sub>1 < p\<^sub>2) l"
+      and "\<forall>(k\<^sub>1, p\<^sub>1) \<in> List.set l. \<forall> (k\<^sub>2, p\<^sub>2) \<in> List.set l. k\<^sub>1 = k\<^sub>2 \<longleftrightarrow> p\<^sub>1 = p\<^sub>2"
+      and "is_distinct t\<^sub>1"
+      and "is_treap t\<^sub>1"
+      and "set t\<^sub>1 = List.set l"
+and "t\<^sub>2 = foldl (\<lambda> t (k, p). bst_insert k p t) \<langle>\<rangle> l"
+  shows "t\<^sub>1 = t\<^sub>2"
+oops
+
 fun search :: "('a::linorder) \<Rightarrow> 'a treap \<Rightarrow> bool" where
   "search k \<langle>\<rangle> = False" |
   "search k \<langle>l, k', _, r\<rangle> = (if k = k' then True else if k < k' then search k l else search k r)"
 
-lemma search_correct_if_exists: "is_bst t \<Longrightarrow> \<exists>p. (k, p) \<in> set t \<Longrightarrow> search k t"
-  by(induction t arbitrary: k rule: is_bst.induct, auto)
-lemma search_correct_if_not_exists: "is_bst t \<Longrightarrow> \<forall>p. (k, p) \<notin> set t \<Longrightarrow> \<not>search k t"
-  by(induction t arbitrary: k rule: is_bst.induct, auto)
-lemma search_correct: "is_bst t \<Longrightarrow> search k t \<longleftrightarrow> (\<exists>p. (k, p) \<in> set t)"
-  using search_correct_if_exists search_correct_if_not_exists by blast
-
+lemma search_correct:
+  assumes "is_bst t"
+  shows "search k t \<longleftrightarrow> (\<exists>p. (k, p) \<in> set t)"
+proof
+  from assms have "\<forall>p. (k, p) \<notin> set t \<Longrightarrow> \<not>search k t"
+    by(induction t arbitrary: k rule: is_bst.induct, auto)
+  then show "search k t \<Longrightarrow> \<exists>p. (k, p) \<in> Treaps.set t"
+    by auto
+next
+  show "\<exists>p. (k, p) \<in> Treaps.set t \<Longrightarrow> search k t"
+  using assms by(induction t arbitrary: k rule: is_bst.induct, auto)
+qed
 
 fun insert_prio :: "('a::linorder) \<Rightarrow> real \<Rightarrow> 'a treap \<Rightarrow> 'a treap" where
   "insert_prio k p \<langle>\<rangle> = \<langle>\<langle>\<rangle>, k, p, \<langle>\<rangle>\<rangle>" |
