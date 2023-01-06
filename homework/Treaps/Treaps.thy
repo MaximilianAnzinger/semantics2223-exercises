@@ -38,6 +38,10 @@ fun set :: "('a::linorder) treap \<Rightarrow> ('a \<times> real) set" where
   Leaf: "set \<langle>\<rangle> = {}" |
   Node: "set \<langle>l, k, p, r\<rangle> = {(k, p)} \<union> set l \<union> set r"
 
+fun node_set :: "('a::linorder) treap \<Rightarrow> ('a treap) set" where
+  "node_set \<langle>\<rangle> = {}" |
+  "node_set \<langle>l, k, p, r\<rangle> = {\<langle>l, k, p, r\<rangle>} \<union> node_set l \<union> node_set r"
+
 lemma set_finite: "finite (set t)" by(induction t, auto)
 lemma child_subset: "set (left t) \<subseteq> set t" "set (right t) \<subseteq> set t" by(induction t, auto)
 lemma not_in_set_not_in_tree:
@@ -398,8 +402,12 @@ proof(induction t arbitrary: k p rule: is_bst.induct)
 qed(simp)
 
 lemma bst_insert_not_modify_inner_nodes:
-  "is_bst t \<Longrightarrow> \<forall>p. (k, p) \<notin> set t"
-  oops
+  assumes "is_bst t"
+      and "\<forall>p. (k, p) \<notin> set t"
+      and "left t \<noteq> \<langle>\<rangle>"
+    shows "prio (left t) = prio (left (bst_insert k p t))"
+  using assms apply(cases t, simp)
+  by (smt (verit, best) bst_insert.simps(2) is_bst.cases left.simps(1) prio.simps(1)) 
 
 lemma 
   assumes "is_heap t"
