@@ -38,25 +38,53 @@ fun set :: "('a::linorder) treap \<Rightarrow> ('a \<times> real) set" where
   Leaf: "set \<langle>\<rangle> = {}" |
   Node: "set \<langle>l, k, p, r\<rangle> = {(k, p)} \<union> set l \<union> set r"
 
-fun node_set :: "('a::linorder) treap \<Rightarrow> ('a treap) set" where
-  "node_set \<langle>\<rangle> = {}" |
-  "node_set \<langle>l, k, p, r\<rangle> = {\<langle>l, k, p, r\<rangle>} \<union> node_set l \<union> node_set r"
-
 lemma set_finite: "finite (set t)" by(induction t, auto)
 lemma child_subset: "set (left t) \<subseteq> set t" "set (right t) \<subseteq> set t" by(induction t, auto)
-lemma not_in_set_not_in_tree:
+lemma not_in_set_not_in_tree1:
   assumes "t \<noteq> \<langle>\<rangle>"
       and "(k, p) \<notin> set t"
     shows "(k, p) \<noteq> (key t, prio t) \<and> (k, p) \<notin> set (left t) \<and> (k, p) \<notin> set (right t)"
   using assms by(induction t, auto)
 
-inductive child_of :: "('a::linorder) treap \<Rightarrow> ('a::linorder) treap \<Rightarrow> bool" where
-  Left: "child_of l \<langle>l, k, p, r\<rangle>" |
-  Right: "child_of r \<langle>l, k, p, r\<rangle>" |
-  Cont: "\<lbrakk> child_of a b; child_of b c \<rbrakk> \<Longrightarrow> child_of a c"
+inductive descendant_of :: "('a::linorder) treap \<Rightarrow> ('a::linorder) treap \<Rightarrow> bool" where
+  Left: "descendant_of l \<langle>l, k, p, r\<rangle>" |
+  Right: "descendant_of r \<langle>l, k, p, r\<rangle>" |
+  Cont: "\<lbrakk> descendant_of a b; descendant_of b c \<rbrakk> \<Longrightarrow> descendant_of a c"
 
-definition parent_of :: "('a::linorder) treap \<Rightarrow> ('a::linorder) treap \<Rightarrow> bool" where
-  "parent_of a b \<equiv> child_of b a"
+lemma descendant_subset:
+  "descendant_of c t \<Longrightarrow> set c \<subseteq> set t"
+  by(induction c t rule: descendant_of.induct, auto)
+
+lemma not_in_set_not_in_tree2:
+  assumes "descendant_of c t"
+      and "t \<noteq> \<langle>\<rangle>"
+      and "c \<noteq> \<langle>\<rangle>"
+      and "(k, p) \<notin> set t"
+    shows "(k, p) \<noteq> (key t, prio t) \<and> (k, p) \<noteq> (key c, prio c)"
+  using assms proof(induction c t rule: descendant_of.induct)
+  case (Left l k p r)
+  then show ?case using not_in_set_not_in_tree1 by auto
+next
+  case (Right r l k p)
+  then show ?case using not_in_set_not_in_tree1 by auto
+next
+  case (Cont a b c)
+  then have "descendant_of a c"
+    using descendant_of.Cont by blast
+  with Cont.prems show ?case using descendant_subset not_in_set_not_in_tree1 by blast
+qed
+
+lemma not_in_set_not_in_tree3:
+  assumes "descendant_of c t"
+      and "c \<noteq> \<langle>\<rangle>"
+      and "(k, p) \<notin> set t"
+    shows "(k, p) \<noteq> (key t, prio t) \<and> (k, p) \<noteq> (key c, prio c)"
+proof-
+  have "t \<noteq> \<langle>\<rangle>"
+    using assms(1,2) descendant_subset not_in_set_not_in_tree1 by fastforce
+  then show "(k, p) \<noteq> (key t, prio t) \<and> (k, p) \<noteq> (key c, prio c)"
+    using assms(1,2,3) not_in_set_not_in_tree2 by blast
+qed
 
 inductive distinct_keys :: "('a::linorder) treap \<Rightarrow> bool" where
   Leaf: "distinct_keys \<langle>\<rangle> " |
@@ -65,6 +93,9 @@ inductive distinct_keys :: "('a::linorder) treap \<Rightarrow> bool" where
         \<forall>(l\<^sub>k, l\<^sub>p) \<in> set l. \<forall>(r\<^sub>k, r\<^sub>p) \<in> set r. l\<^sub>k \<noteq> r\<^sub>k \<rbrakk>
         \<Longrightarrow> distinct_keys \<langle>l, k, p, r\<rangle>"
 
+lemma distinct_keys_rev: "distinct_keys \<langle>l, k, p, r\<rangle> \<Longrightarrow> distinct_keys l \<and> distinct_keys r"
+  by(induction "\<langle>l, k, p, r\<rangle>" rule: distinct_keys.induct, auto)
+
 inductive distinct_prios :: "('a::linorder) treap \<Rightarrow> bool" where
   Leaf: "distinct_prios \<langle>\<rangle> " |
   Node: "\<lbrakk> distinct_prios l; distinct_prios r;
@@ -72,35 +103,14 @@ inductive distinct_prios :: "('a::linorder) treap \<Rightarrow> bool" where
         \<forall>(l\<^sub>k, l\<^sub>p) \<in> set l. \<forall>(r\<^sub>k, r\<^sub>p) \<in> set r. l\<^sub>p \<noteq> r\<^sub>p \<rbrakk>
         \<Longrightarrow> distinct_prios \<langle>l, k, p, r\<rangle>"
 
+lemma distinct_prios_rev: "distinct_prios \<langle>l, k, p, r\<rangle> \<Longrightarrow> distinct_prios l \<and> distinct_prios r"
+  by(induction "\<langle>l, k, p, r\<rangle>" rule: distinct_prios.induct, auto)
+
 definition is_distinct :: "('a::linorder) treap \<Rightarrow> bool" where
   "is_distinct t \<equiv> distinct_keys t \<and> distinct_prios t"
 
 lemma distinct_rev: "is_distinct \<langle>l, k, p, r\<rangle> \<Longrightarrow> is_distinct l \<and> is_distinct r"
-proof-
-  assume t_dist: "is_distinct \<langle>l, k, p, r\<rangle>"
-  let ?t = "\<langle>l, k, p, r\<rangle>"
-  from t_dist have "distinct_keys ?t"
-    using is_distinct_def by blast
-  then have "distinct_keys l"
-    using distinct_keys.simps by fast
-  moreover
-  from t_dist have "distinct_prios ?t"
-    using is_distinct_def by blast
-  then have "distinct_prios l"
-    using distinct_prios.simps by fast
-  moreover
-  from t_dist have "distinct_keys ?t"
-    using is_distinct_def by blast
-  then have "distinct_keys r"
-    using distinct_keys.simps by force
-  moreover
-  from t_dist have "distinct_prios ?t"
-    using is_distinct_def by blast
-  then have "distinct_prios r"
-    using distinct_prios.simps by force
-  ultimately show "is_distinct l  \<and> is_distinct r"
-    by (simp add: is_distinct_def)
-qed
+  using distinct_keys_rev distinct_prios_rev is_distinct_def by blast
 
 lemma distinct_root_key: "distinct_keys \<langle>l, k, p, r\<rangle> \<Longrightarrow> (k, p) \<notin> set l \<union> set r"
   by(induction "\<langle>l, k, p, r\<rangle>" arbitrary: k p rule: distinct_keys.induct, auto)
@@ -109,10 +119,10 @@ lemma distinct_root: "is_distinct \<langle>l, k, p, r\<rangle> \<Longrightarrow>
   using distinct_root_key is_distinct_def by blast
 
 lemma child_dist_if_parent_dist:
-  assumes "child_of c p"
+  assumes "descendant_of c p"
       and "is_distinct p"
     shows "is_distinct c"
-  using assms distinct_rev by(induction c p rule: child_of.induct, auto)
+  using assms distinct_rev by(induction c p rule: descendant_of.induct, auto)
 
 lemma lrchilds_disjoint_key: "distinct_keys \<langle>l, k, p, r\<rangle> \<Longrightarrow> set l \<inter> set r = {}"
   by(induction "\<langle>l, k, p, r\<rangle>" arbitrary: k p rule: distinct_keys.induct, auto)
@@ -157,6 +167,9 @@ using assms proof(induction t rule: set.induct)
     using is_distinct_def distinct_root by blast
   then show ?case by simp
 qed(simp)
+
+lemma distinct_set_rev: "is_distinct \<langle>l, k, p, r\<rangle> \<Longrightarrow> {(k,p)} \<union> set (l) \<union> set (r) = set \<langle>l, k, p, r\<rangle>"
+  by(induction "\<langle>l, k, p, r\<rangle>", auto)
 
 inductive is_bst :: "('a::linorder) treap \<Rightarrow> bool" where
   Leaf: "is_bst \<langle>\<rangle>" |
@@ -221,6 +234,28 @@ proof-
   then show "is_heap \<langle>\<langle>\<rangle>, k, p, \<langle>\<rangle>\<rangle>" by simp
 qed
 
+lemma heap_root_prio_lower_bound:
+  assumes "is_heap t"
+      and "is_distinct t"
+    shows "\<forall>(k', p') \<in> set t. prio t \<le> p'"
+using assms proof(induction t arbitrary: p rule: is_heap.induct)
+  case (Node l r p k) 
+  then have
+    "\<forall>(k', p') \<in> set l. prio l \<le> p'"
+    "\<forall>(k', p') \<in> set r. prio r \<le> p'"
+    using distinct_rev by blast+
+  then have
+    "\<forall>(k', p') \<in>  set l. p < p'" 
+    "\<forall>(k', p') \<in>  set r. p < p'" 
+    using Node.hyps(3,4) by fastforce+
+  then have "\<forall>(k', p') \<in>  set l \<union> set r. p < p'"
+    by blast
+  then have "\<forall>(k', p') \<in>  set l \<union> set r. p \<le> p'"
+    using less_eq_real_def by auto
+  then show ?case
+    by simp
+qed(simp)
+
 lemma heap_root_has_smallest_prio:
   assumes "is_heap t"
       and "is_distinct t"
@@ -258,6 +293,8 @@ proof
   then show "t = \<langle>\<rangle>" by(cases t, auto)
 qed(simp)
 
+text \<open>Any two treaps (each with distinct key-priority-pairs) have the same structure.
+In other words: For (k\<^sub>1,p\<^sub>1) ... (k\<^sub>n,p\<^sub>n), there exists a unique treap.\<close>
 theorem treap_is_unique:
   assumes distinct:      "is_distinct t\<^sub>1" "is_distinct t\<^sub>2"
       and treaps:        "is_treap t\<^sub>1" "is_treap t\<^sub>2"
@@ -283,7 +320,7 @@ next
   have "is_treap l\<^sub>2" "is_treap r\<^sub>2"
     using Node.prems(4) is_heap.cases is_bst.cases is_treap_def t2_def by fastforce+
 
-  (* roots eq *)
+  (* roots equal *)
   have "\<forall>(k', p') \<in> set (left ?t\<^sub>1) \<union> set (right ?t\<^sub>1). prio ?t\<^sub>1 < p'"
     using Node.prems(1, 3) heap_root_has_smallest_prio is_treap_def by blast
   then have "\<forall>(k', p') \<in> ?entries - {(k\<^sub>1, p\<^sub>1)}. prio ?t\<^sub>1 < p'"
@@ -309,7 +346,7 @@ next
   then have roots_eq_keys: "k\<^sub>1 = k\<^sub>2"
     using Node.prems(5) case_prodD root1_in_set root2_smallest_prio t2_def by fastforce
 
-  (* left subtree eq *)
+  (* left subtree equal *)
   have "\<forall>(k', p') \<in> ?entries. k' < key ?t\<^sub>1 \<longrightarrow> (k', p') \<in> set (left ?t\<^sub>1)"
     using Node.prems(1,3) is_treap_def smaller_key_is_left_child by fastforce
   moreover have "\<forall>(k', p') \<in> ?entries.  \<not>k' < key ?t\<^sub>1 \<longrightarrow> (k', p') \<notin> set (left ?t\<^sub>1)"
@@ -335,7 +372,7 @@ next
     using Node.IH(1) \<open>is_treap l\<^sub>2\<close> Node.prems distinct_rev bst_rev is_heap.cases is_treap_def t2_def
     by (metis left.simps(1) treap.distinct(1))
 
-  (* right subtree eq *)
+  (* right subtree equal *)
   have "\<forall>(k', p') \<in> ?entries. key ?t\<^sub>1 < k' \<longrightarrow> (k', p') \<in> set (right ?t\<^sub>1)"
     using Node.prems(1,3) is_treap_def larger_key_is_right_child by fastforce
   moreover have "\<forall>(k', p') \<in> ?entries.  \<not>key ?t\<^sub>1 < k' \<longrightarrow> (k', p') \<notin> set (right ?t\<^sub>1)"
@@ -370,9 +407,9 @@ fun bst_insert :: "('a::linorder) \<Rightarrow> real \<Rightarrow> 'a treap \<Ri
   "bst_insert k p \<langle>l, k', p', r\<rangle> = (if k < k' then \<langle>bst_insert k p l, k', p', r\<rangle> else \<langle>l, k', p', bst_insert k p r\<rangle>)"
 
 lemma bst_insert_inserts: "is_bst t \<Longrightarrow> set (bst_insert k p t) = set t \<union> {(k, p)}"
-  by(induction t arbitrary: k p rule: is_bst.induct, cases "k < k'", auto)
+  by(induction t  rule: is_bst.induct, cases "k < k'", auto)
 
-lemma bst_insert_maintains__inv: "is_bst t \<Longrightarrow> \<forall>p. (k, p) \<notin> set t \<Longrightarrow> is_bst (bst_insert k p t)"
+lemma bst_insert_maintains_inv: "is_bst t \<Longrightarrow> \<forall>p. (k, p) \<notin> set t \<Longrightarrow> is_bst (bst_insert k p t)"
 proof(induction t arbitrary: k p rule: is_bst.induct)
   case (Node l r k' p')
   then have "k \<noteq> k'" by auto
@@ -401,71 +438,186 @@ proof(induction t arbitrary: k p rule: is_bst.induct)
   qed
 qed(simp)
 
-lemma bst_insert_not_modify_inner_nodes:
+lemma bst_insert_root_key_same:
   assumes "is_bst t"
-      and "\<forall>p. (k, p) \<notin> set t"
-      and "left t \<noteq> \<langle>\<rangle>"
-    shows "prio (left t) = prio (left (bst_insert k p t))"
-  using assms apply(cases t, simp)
-  by (smt (verit, best) bst_insert.simps(2) is_bst.cases left.simps(1) prio.simps(1)) 
+      and "t \<noteq> \<langle>\<rangle>"
+    shows "key t = key (bst_insert k p t)"
+  using assms by(induction t rule: is_bst.induct, cases "k < k'", auto)
 
-lemma 
-  assumes "is_heap t"
-      and "is_bst t"
-      and "\<forall>p'. (k, p') \<notin> set t"
+lemma bst_insert_root_prio_same:
+  assumes "is_bst t"
+      and "t \<noteq> \<langle>\<rangle>"
+    shows "prio t = prio (bst_insert k p t)"
+  using assms by(induction t rule: is_bst.induct, cases "k < k'", auto)
+
+lemma bst_insert_maintains_heap:
+  assumes "is_bst t"
+      and "is_heap t"
       and "\<forall>(k', p') \<in> set t. p' < p"
       and "is_valid_prio p"
     shows "is_heap (bst_insert k p t)"
-using assms proof(induction t arbitrary: k p rule: is_heap.induct)
-  case (Node l r p' k')
-  then have "k \<noteq> k'" by auto
+using assms proof(induction t rule: is_bst.induct)
+  case (Node l r k' p')
+  then have subheaps: "is_heap l" "is_heap r"
+    using is_heap.cases by auto
+  have sub_larger_prios: "prio l > p'" "prio r > p'"
+    using Node.prems(1) is_heap.cases by auto
   then show ?case
   proof(cases "k < k'")
     case True
-    have  "is_heap (bst_insert k p l)"
-     using Node.IH(1) Node.prems(1,2,4) bst_rev by (force simp: Node.prems(3))
-    from True have "bst_insert k p \<langle>l, k', p', r\<rangle> = \<langle>bst_insert k p l, k', p', r\<rangle>" by simp
-    obtain l\<^sub>r k\<^sub>r p\<^sub>r r\<^sub>r where "bst_insert k p l = \<langle>l\<^sub>r, k\<^sub>r, p\<^sub>r, r\<^sub>r\<rangle>"
-      by (smt (verit, best) bst_insert.elims)
-    let ?lin = "\<langle>l\<^sub>r, k\<^sub>r, p\<^sub>r, r\<^sub>r\<rangle>"
-    have "\<forall>(k, p) \<in> set ?lin. p\<^sub>r \<le> p" sorry
-    then have "p\<^sub>r > p'" sorry
-    then show ?thesis sorry
+    then show ?thesis
+    proof(cases l)
+      case Leaf
+      let ?l = "\<langle>\<langle>\<rangle>, k, p, \<langle>\<rangle>\<rangle>"
+      have "is_heap ?l"  by (simp add: assms(4))
+      moreover have "prio ?l > p'" using Node.prems(2) by auto
+      ultimately have "is_heap \<langle>?l, k', p', r\<rangle>"
+        using subheaps(2) sub_larger_prios(2) Node.prems(1,3) Node.prems(1)
+          is_heap.Node is_heap.simps by blast
+      with True Leaf show ?thesis by simp
+    next
+      case Node
+      let ?l = "bst_insert k p l"
+      have "\<forall>(k', p') \<in> set l. p' < p" using Node.prems(2) by auto
+      then have "is_heap ?l"
+        by (simp add: Node.IH(1) assms(4) subheaps(1))
+      moreover have "prio ?l > p'" using Node sub_larger_prios(1) by auto
+      ultimately have "is_heap \<langle>?l, k', p', r\<rangle>"
+        using subheaps(2) sub_larger_prios(2) Node.prems(1,3) Node.prems(1)
+          is_heap.Node is_heap.simps by blast
+      with True show ?thesis by simp
+    qed
   next
     case False
-    then have "k' < k" using \<open>k \<noteq> k'\<close> by auto
-    have "is_heap (bst_insert k p r)"
-      using Node.IH(2) Node.prems(1,2,4) bst_rev by (force simp: Node.prems(3))
-    then show ?thesis sorry
+    then show ?thesis
+    proof(cases r)
+      case Leaf
+      let ?r = "\<langle>\<langle>\<rangle>, k, p, \<langle>\<rangle>\<rangle>"
+      have "is_heap ?r"  by (simp add: assms(4))
+      moreover have "prio ?r > p'" using Node.prems(2) by auto
+      ultimately have "is_heap \<langle>l, k', p', ?r\<rangle>"
+        using subheaps(1) sub_larger_prios(1) Node.prems(1,3) Node.prems(1)
+          is_heap.Node is_heap.simps by blast
+      with False Leaf show ?thesis by simp
+    next
+      case Node
+      let ?r = "bst_insert k p r"
+      have "\<forall>(k', p') \<in> set r. p' < p" using Node.prems(2) by auto
+      then have "is_heap ?r"
+        by (simp add: Node.IH(2) assms(4) subheaps(2))
+      moreover have "prio ?r > p'" using Node sub_larger_prios(2) by auto
+      ultimately have "is_heap \<langle>l, k', p', ?r\<rangle>"
+        using subheaps(1) sub_larger_prios(1) Node.prems(1,3) Node.prems(1)
+          is_heap.Node is_heap.simps by blast
+      with False show ?thesis by simp
+    qed
   qed
 qed(simp)
 
-
-lemma 
-  assumes "sorted_wrt (\<lambda> (k\<^sub>1, p\<^sub>1) (k\<^sub>2, p\<^sub>2). p\<^sub>1 < p\<^sub>2) l"
-      and "\<forall>(k\<^sub>1, p\<^sub>1) \<in> List.set l. \<forall> (k\<^sub>2, p\<^sub>2) \<in> List.set l. k\<^sub>1 = k\<^sub>2 \<longleftrightarrow> p\<^sub>1 = p\<^sub>2"
-      and "\<forall>(k, p) \<in> List.set l. is_valid_prio p"
-      and "t = foldl (\<lambda> t (k, p). bst_insert k p t) \<langle>\<rangle> l"
-    shows "is_treap t"
-  using assms proof(induction l)
-  case Nil
-  then show ?case
-    using is_bst.Leaf is_heap.Leaf is_treap_def by auto
-next
-  case (Cons a l)
-  then show ?case sorry
+lemma bst_insert_maintains_treap:
+  assumes "is_treap t"
+      and "\<forall>(k', p') \<in> set t. p' < p"
+      and "\<forall>(k', p') \<in> set t. k \<noteq> k'"
+      and "is_valid_prio p"
+    shows "is_treap (bst_insert k p t)"
+proof-
+  have "is_bst t" using assms(1) is_treap_def by blast
+  then have "is_bst (bst_insert k p t)"
+    using assms(3) bst_insert_maintains_inv by fastforce
+  moreover have "is_heap t" using assms(1) is_treap_def by blast
+  then have "is_heap (bst_insert k p t)"
+    using \<open>is_bst t\<close> assms(2) assms(4) bst_insert_maintains_heap by blast
+  ultimately show "is_treap (bst_insert k p t)" by (simp add: is_treap_def)
 qed
-  sorry
 
-lemma
-  assumes "sorted_wrt (\<lambda> (k\<^sub>1, p\<^sub>1) (k\<^sub>2, p\<^sub>2). p\<^sub>1 < p\<^sub>2) l"
-      and "\<forall>(k\<^sub>1, p\<^sub>1) \<in> List.set l. \<forall> (k\<^sub>2, p\<^sub>2) \<in> List.set l. k\<^sub>1 = k\<^sub>2 \<longleftrightarrow> p\<^sub>1 = p\<^sub>2"
-      and "is_distinct t\<^sub>1"
-      and "is_treap t\<^sub>1"
-      and "set t\<^sub>1 = List.set l"
-and "t\<^sub>2 = foldl (\<lambda> t (k, p). bst_insert k p t) \<langle>\<rangle> l"
-  shows "t\<^sub>1 = t\<^sub>2"
-oops
+lemma foldr_bst_insert_is_bst:
+  assumes "t = foldr (\<lambda> (k, p) t. bst_insert k p t) x \<langle>\<rangle>"
+      and "\<forall>(k\<^sub>1, p\<^sub>1) \<in> List.set x. \<forall> (k\<^sub>2, p\<^sub>2) \<in> List.set x. k\<^sub>1 = k\<^sub>2 \<longleftrightarrow> p\<^sub>1 = p\<^sub>2"
+    shows "is_bst t"
+using assms proof(induction x arbitrary: t)
+  case (Cons x xs)
+  let ?tinter = "foldr (\<lambda> (k, p) t. bst_insert k p t) xs \<langle>\<rangle>"
+  obtain k p where kpdef: "x = (k, p)" by fastforce
+  then have "t = bst_insert k p ?tinter" by (simp add: Cons.prems(1))
+  have "is_bst ?tinter"
+    using Cons.IH Cons.prems(2) by fastforce
+  moreover have "\<forall>p. (k, p) \<notin> set ?tinter" sorry
+  ultimately show ?case
+    by (simp add: \<open>t = bst_insert k p (foldr (\<lambda>(k, p). bst_insert k p) xs \<langle>\<rangle>)\<close> bst_insert_maintains_inv)
+qed(simp add: is_bst.Leaf)
+
+lemma foldr_bst_insert_sets_eq:
+  assumes "t = foldr (\<lambda> (k, p) t. bst_insert k p t) x \<langle>\<rangle>"
+      and "\<forall>(k\<^sub>1, p\<^sub>1) \<in> List.set x. \<forall> (k\<^sub>2, p\<^sub>2) \<in> List.set x. k\<^sub>1 = k\<^sub>2 \<longleftrightarrow> p\<^sub>1 = p\<^sub>2"
+    shows "set t = List.set x"
+using assms proof(induction x arbitrary: t)
+  case (Cons x xs)
+  let ?tinter = "foldr (\<lambda> (k, p) t. bst_insert k p t) xs \<langle>\<rangle>"
+  have "List.set xs \<subseteq> List.set (x#xs)" by auto
+  then have "\<forall>(k\<^sub>1, p\<^sub>1) \<in> List.set xs. \<forall> (k\<^sub>2, p\<^sub>2) \<in> List.set xs. k\<^sub>1 = k\<^sub>2 \<longleftrightarrow> p\<^sub>1 = p\<^sub>2"
+    using Cons.prems(2) by auto
+  then have "is_bst ?tinter" using foldr_bst_insert_is_bst by blast
+  obtain k p where kpdef: "x = (k, p)" by fastforce
+  have "set ?tinter = List.set xs"
+    using Cons.IH Cons.prems(2) list.set_intros(2) by force
+  from kpdef have "t = bst_insert k p ?tinter" by (simp add: Cons.prems(1))
+  then have "set (bst_insert k p ?tinter) = set ?tinter \<union> {(k, p)}"
+    by (simp add: \<open>is_bst (foldr (\<lambda>(k, p). bst_insert k p) xs \<langle>\<rangle>)\<close> bst_insert_inserts)
+  then show ?case
+    using \<open>Treaps.set (foldr (\<lambda>(k, p). bst_insert k p) xs \<langle>\<rangle>) = list.set xs\<close>
+          \<open>t = bst_insert k p (foldr (\<lambda>(k, p). bst_insert k p) xs \<langle>\<rangle>)\<close> kpdef
+    by auto
+qed(simp)
+
+text \<open>Any treap has the same tree structure that would result if elements were inserted in the order of their priorities\<close>
+lemma treap_has_special_structure1:
+  assumes "sorted_wrt (\<lambda> (k\<^sub>1, p\<^sub>1) (k\<^sub>2, p\<^sub>2). p\<^sub>1 > p\<^sub>2) x"
+      and "\<forall>(k\<^sub>1, p\<^sub>1) \<in> List.set x. \<forall> (k\<^sub>2, p\<^sub>2) \<in> List.set x. k\<^sub>1 = k\<^sub>2 \<longleftrightarrow> p\<^sub>1 = p\<^sub>2"
+      and "\<forall>(k, p) \<in> List.set x. is_valid_prio p"
+      and "t = foldr (\<lambda> (k, p) t. bst_insert k p t) x \<langle>\<rangle>"
+    shows "is_treap t"
+  using assms proof(induction x arbitrary: t)
+  case Nil
+  then have "t = \<langle>\<rangle>"
+    by auto
+  then show ?case
+    by (simp add: is_bst.Leaf is_heap.Leaf is_treap_def)
+next
+  case (Cons x xs)
+  let ?tinter = "foldr (\<lambda> (k, p) t. bst_insert k p t) xs \<langle>\<rangle>"
+  have "List.set xs \<subseteq> List.set (x#xs)" by auto
+  then have subkeyid: "\<forall>(k\<^sub>1, p\<^sub>1) \<in> List.set xs. \<forall> (k\<^sub>2, p\<^sub>2) \<in> List.set xs. k\<^sub>1 = k\<^sub>2 \<longleftrightarrow> p\<^sub>1 = p\<^sub>2"
+    using Cons.prems(2) by auto
+  obtain k p where kpdef: "x = (k, p)" by fastforce
+  then have "t = bst_insert k p ?tinter" by (simp add: Cons.prems(4))
+  have "is_treap ?tinter"
+    using Cons.IH Cons.prems(1) Cons.prems(3) subkeyid by auto
+  moreover
+  have "\<forall> (k', p') \<in> List.set xs. p > p'"
+    using Cons.prems(1) kpdef by auto
+  then have "\<forall> (k', p') \<in> set ?tinter. p > p'"
+    using foldr_bst_insert_sets_eq subkeyid by blast
+  then have "\<forall>(k', p') \<in> set ?tinter. p' < p"
+    by simp
+  moreover 
+  have "\<forall>(k\<^sub>1, p\<^sub>1) \<in> List.set xs. \<forall> (k\<^sub>2, p\<^sub>2) \<in> List.set xs. p\<^sub>1 \<noteq> p\<^sub>2 \<longrightarrow> k\<^sub>1 \<noteq> k\<^sub>2"
+    using subkeyid by force
+  moreover have "\<forall>(k', p') \<in> List.set xs. k \<noteq> k'"
+    using Cons.prems(2) \<open>\<forall>(k', p')\<in>list.set xs. p' < p\<close> kpdef by fastforce
+  then have "\<forall>(k', p') \<in> set ?tinter. k \<noteq> k'"
+    by (simp add: foldr_bst_insert_sets_eq subkeyid)
+  moreover
+  from \<open>\<forall>(k, p) \<in> List.set (x#xs). is_valid_prio p\<close> have "is_valid_prio p"
+    by (simp add: kpdef)
+  ultimately have "is_treap (bst_insert k p ?tinter)"
+    using bst_insert_maintains_treap by blast
+  then show ?case
+    by (simp add: \<open>t = bst_insert k p (foldr (\<lambda>(k, p). bst_insert k p) xs \<langle>\<rangle>)\<close>)
+qed
+
+
+
+(* Runtime of several operations - Not complete *)
 
 fun search :: "('a::linorder) \<Rightarrow> 'a treap \<Rightarrow> bool" where
   "search k \<langle>\<rangle> = False" |
@@ -500,24 +652,5 @@ fun insert_prio :: "('a::linorder) \<Rightarrow> real \<Rightarrow> 'a treap \<R
           else \<langle>l\<^sub>r, k\<^sub>r, p\<^sub>r, \<langle>l\<^sub>c, k\<^sub>c, p\<^sub>c, r\<^sub>c\<rangle>\<rangle>) |
         _ \<Rightarrow> undefined)
     )"
-
-lemma insert_prio_correct:
-  "is_treap t \<Longrightarrow> is_valid_prio p \<Longrightarrow> \<forall>p. (k, p) \<notin> set t \<Longrightarrow> \<forall>k. (k, p) \<notin> set t \<Longrightarrow> is_treap (insert_prio k p t)"
-proof(induction t arbitrary: k p)
-  case Leaf
-  then show ?case by (simp add: is_treap_def)
-next
-  case (Node l k' p' r)
-  then have "k \<noteq> k'" by auto
-  then show ?case
-  proof(cases "k < k'")
-    case True
-    then show ?thesis sorry
-  next
-    case False
-    then have "k' < k" using \<open>k \<noteq> k'\<close> by auto
-    then show ?thesis sorry
-  qed
-qed
 
 end
