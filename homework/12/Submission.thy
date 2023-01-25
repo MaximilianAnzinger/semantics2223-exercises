@@ -32,7 +32,24 @@ definition A\<^sub>8 :: "entry list"  where
 definition A\<^sub>9 :: "entry list"  where
   "A\<^sub>9 _ = undefined"
 
+
+
+(* Abst_Int0 -------------------- START --------------------*)
+
+(* Abst_Int0 --------------------- END ---------------------*)
+
+(* Abst_Int1 -------------------- START --------------------*)
+(* Abst_Int1 --------------------- END ---------------------*)
+
+(* Abst_Int1_parity -------------------- START --------------------*)
+(* Abst_Int1_parity --------------------- END ---------------------*)
+
+
+
 hide_const (open) None Some
+
+datatype bound = NegInf ("\<infinity>\<^sup>-") | PosInf ("\<infinity>\<^sup>+") | NaN | Real
+datatype bounds = B "bound set"
 
 instantiation bounds :: order
 begin
@@ -44,7 +61,20 @@ definition less_bounds where
 "x < y = (case (x, y) of (B x, B y) \<Rightarrow> x \<subset> y)"
 
 instance
-  sorry
+proof (standard, goal_cases)
+  case (1 x y)
+  then show ?case unfolding less_bounds_def less_eq_bounds_def by(fastforce split: bounds.splits)
+next
+  case (2 x)
+  then show ?case unfolding less_eq_bounds_def by(simp split: bounds.splits)
+next
+  case (3 x y z)
+  then show ?case unfolding less_eq_bounds_def by(fastforce split: bounds.splits)
+next
+  case (4 x y)
+  then show ?case unfolding less_eq_bounds_def by(fastforce split: bounds.splits)
+qed
+
 end
 
 instantiation bounds :: semilattice_sup_top
