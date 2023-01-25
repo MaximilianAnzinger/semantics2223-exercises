@@ -692,27 +692,63 @@ end
 
 
 fun \<gamma>_bounds :: "bounds \<Rightarrow> val set"  where
-  "\<gamma>_bounds _ = undefined"
+  "\<gamma>_bounds (B b) =
+    (if PosInf \<in> b then {Some PInfty} else {})
+    \<union> (if NegInf \<in> b then {Some MInfty} else {})
+    \<union> (if Real \<in> b then {si. \<exists>i\<in>UNIV. si = Some i} else {})
+    \<union> (if NaN \<in> b then {None} else {})"
 
 definition num_bounds :: "ereal \<Rightarrow> bounds"  where
-  "num_bounds _ = undefined"
+  "num_bounds er = B {(case er of
+      PInfty \<Rightarrow> PosInf
+    | MInfty => NegInf
+    | _ \<Rightarrow> Real)}"
+
+fun plus_bound_helper :: "bound \<Rightarrow> bound \<Rightarrow> bound" where
+  "plus_bound_helper NaN _ = NaN" |
+  "plus_bound_helper _ NaN = NaN" |
+  "plus_bound_helper NegInf PosInf = NaN" |
+  "plus_bound_helper PosInf NegInf = NaN" |
+  "plus_bound_helper NegInf NegInf = NegInf" |
+  "plus_bound_helper NegInf Real = NegInf" |
+  "plus_bound_helper PosInf PosInf = PosInf" |
+  "plus_bound_helper PosInf Real = PosInf" |
+  "plus_bound_helper Real NegInf = NegInf" |
+  "plus_bound_helper Real PosInf = PosInf" |
+  "plus_bound_helper Real Real = Real"
 
 fun plus_bounds :: "bounds \<Rightarrow> bounds \<Rightarrow> bounds"  where
-  "plus_bounds _ = undefined"
+  "plus_bounds (B b1) (B b2) = B {x. \<exists>bb1\<in>b1. \<exists>bb2\<in>b2. x = plus_bound_helper bb1 bb2}"
 
 global_interpretation Val_semilattice
-where \<gamma> = \<gamma>_bounds and num' = num_bounds and plus' = plus_bounds
-  sorry
+  where \<gamma> = \<gamma>_bounds and num' = num_bounds and plus' = plus_bounds
+proof (standard, goal_cases)
+  case (1 a b)
+  then show ?case
+    unfolding less_eq_bounds_def by(simp split: bounds.splits, blast)
+next
+  case 2
+  then show ?case unfolding top_bounds_def by auto
+next
+  case (3 i)
+  then show ?case unfolding num_bounds_def by(cases i, auto)
+next
+  case (4 i1 a1 i2 a2 j)
+  then show ?case sorry
+qed
 
 global_interpretation Abs_Int
 where \<gamma> = \<gamma>_bounds and num' = num_bounds and plus' = plus_bounds
 defines aval_bounds = aval' and step_bounds = step' and AI_bounds = AI
-  sorry
+  ..
 
 
 global_interpretation Abs_Int_mono
   where \<gamma> = \<gamma>_bounds and num' = num_bounds and plus' = plus_bounds
-  sorry
+proof (standard, goal_cases)
+  case (1 a1 b1 a2 b2)
+  then show ?case unfolding less_eq_bounds_def by(cases a1;cases b1;cases a2;cases b2, auto)
+qed
 
 fun m_bounds :: "bounds \<Rightarrow> nat"  where
   "m_bounds _ = undefined"
