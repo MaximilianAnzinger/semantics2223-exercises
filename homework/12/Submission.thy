@@ -3,34 +3,46 @@ theory Submission
 begin
 
 definition A\<^sub>0 :: "entry list"  where
-  "A\<^sub>0 _ = undefined"
+  "A\<^sub>0 = [Unchanged, Some Odd, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged]"
 
 definition A\<^sub>1 :: "entry list"  where
-  "A\<^sub>1 _ = undefined"
+  "A\<^sub>1 = [Unchanged, Unchanged, Some Odd, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged]"
 
 definition A\<^sub>2 :: "entry list"  where
-  "A\<^sub>2 _ = undefined"
+  "A\<^sub>2 = [Unchanged, Unchanged, Unchanged, Some Odd, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged]"
 
 definition A\<^sub>3 :: "entry list"  where
-  "A\<^sub>3 _ = undefined"
+  "A\<^sub>3 = [Unchanged, Unchanged, Unchanged, Unchanged, Some Even, Unchanged, Unchanged, Unchanged, Unchanged]"
 
 definition A\<^sub>4 :: "entry list"  where
-  "A\<^sub>4 _ = undefined"
+  "A\<^sub>4 = [Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Some Even, Unchanged, Unchanged, Unchanged]"
 
 definition A\<^sub>5 :: "entry list"  where
-  "A\<^sub>5 _ = undefined"
+  "A\<^sub>5 = [Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Some Odd, Unchanged, Unchanged]"
 
 definition A\<^sub>6 :: "entry list"  where
-  "A\<^sub>6 _ = undefined"
+  "A\<^sub>6 = [Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged]"
 
 definition A\<^sub>7 :: "entry list"  where
-  "A\<^sub>7 _ = undefined"
+  "A\<^sub>7 = [Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged]"
 
 definition A\<^sub>8 :: "entry list"  where
-  "A\<^sub>8 _ = undefined"
+  "A\<^sub>8 = [Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Some Odd, Unchanged]"
 
 definition A\<^sub>9 :: "entry list"  where
-  "A\<^sub>9 _ = undefined"
+  "A\<^sub>9 = [Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Some Odd]"
+
+(*
+r := 1; {A0}
+{A1} WHILE b DO {A2} (
+r := r * 2;{A3}
+IF b THEN {A4}
+r := r - 1{A5}
+ELSE {A6}
+r := r + 2{A7}
+{A8}
+){A9}
+*)
 
 hide_const (open) None Some
 
@@ -695,8 +707,37 @@ fun \<gamma>_bounds :: "bounds \<Rightarrow> val set"  where
   "\<gamma>_bounds (B b) =
     (if PosInf \<in> b then {Some PInfty} else {})
     \<union> (if NegInf \<in> b then {Some MInfty} else {})
-    \<union> (if Real \<in> b then {si. \<exists>i\<in>UNIV. si = Some i} else {})
+    \<union> (if Real \<in> b then {si. \<exists>i\<in>UNIV-{PInfty, MInfty}. si = Some i} else {})
     \<union> (if NaN \<in> b then {None} else {})"
+
+lemma \<gamma>_bounds_excl:
+  assumes "a = \<gamma>_bounds (B b)"
+  shows "NaN \<notin> b \<Longrightarrow> None \<notin> a"
+        "PosInf \<notin> b \<Longrightarrow> (Some PInfty) \<notin> a"
+        "NegInf \<notin> b \<Longrightarrow> (Some MInfty) \<notin> a"
+        "Real \<notin> b \<Longrightarrow> i \<noteq> PInfty \<Longrightarrow> i \<noteq> MInfty \<Longrightarrow> (Some i) \<notin> a"
+  using assms by auto
+
+lemma \<gamma>_bounds_incl:
+  assumes "a = \<gamma>_bounds (B b)"
+  shows "NaN \<in> b \<Longrightarrow> None \<in> a"
+        "PosInf \<in> b \<Longrightarrow> (Some PInfty) \<in> a"
+        "NegInf \<in> b \<Longrightarrow> (Some MInfty) \<in> a"
+        "Real \<in> b \<Longrightarrow> i \<noteq> PInfty \<Longrightarrow> i \<noteq> MInfty \<Longrightarrow> (Some i) \<in> a"
+  using assms by auto
+
+lemma \<gamma>_bounds_backwards:
+  assumes "a = \<gamma>_bounds (B b)"
+  shows "None \<in> a \<Longrightarrow> NaN \<in> b"
+        "(Some PInfty) \<in> a \<Longrightarrow> PosInf \<in> b"
+        "(Some MInfty) \<in> a \<Longrightarrow> NegInf \<in> b"
+        "(Some i) \<in> a \<Longrightarrow> i \<noteq> PInfty \<Longrightarrow> i \<noteq> MInfty \<Longrightarrow> Real \<in> b"
+  using \<gamma>_bounds_excl(1) assms apply blast
+  using \<gamma>_bounds_excl(2) assms apply blast
+  using \<gamma>_bounds_excl(3) assms apply blast
+  using \<gamma>_bounds_excl(4) assms by blast
+
+  
 
 definition num_bounds :: "ereal \<Rightarrow> bounds"  where
   "num_bounds er = B {(case er of
@@ -720,6 +761,34 @@ fun plus_bound_helper :: "bound \<Rightarrow> bound \<Rightarrow> bound" where
 fun plus_bounds :: "bounds \<Rightarrow> bounds \<Rightarrow> bounds"  where
   "plus_bounds (B b1) (B b2) = B {x. \<exists>bb1\<in>b1. \<exists>bb2\<in>b2. x = plus_bound_helper bb1 bb2}"
 
+lemma plus_bounds_incl:
+  assumes "plus_bounds (B b1) (B b2) = (B b3)"
+      and "b1 \<noteq> {}"
+      and "b2 \<noteq> {}"
+    shows
+      "NaN \<in> b1 \<Longrightarrow> NaN \<in> b3"
+      "NaN \<in> b2 \<Longrightarrow> NaN \<in> b3"
+      "NegInf \<in> b1 \<Longrightarrow> PosInf \<in> b2 \<Longrightarrow> NaN \<in> b3"
+      "PosInf \<in> b1 \<Longrightarrow> NegInf \<in> b2 \<Longrightarrow> NaN \<in> b3"
+      "NegInf \<in> b1 \<Longrightarrow> NegInf \<in> b2 \<Longrightarrow> NegInf \<in> b3"
+      "NegInf \<in> b1 \<Longrightarrow> Real \<in> b2 \<Longrightarrow> NegInf \<in> b3"
+      "PosInf \<in> b1 \<Longrightarrow> PosInf \<in> b2 \<Longrightarrow> PosInf \<in> b3"
+      "PosInf \<in> b1 \<Longrightarrow> Real \<in> b2 \<Longrightarrow> PosInf \<in> b3"
+      "Real \<in> b1 \<Longrightarrow> NegInf \<in> b2 \<Longrightarrow> NegInf \<in> b3"
+      "Real \<in> b1 \<Longrightarrow> PosInf \<in> b2 \<Longrightarrow> PosInf \<in> b3"
+      "Real \<in> b1 \<Longrightarrow> Real \<in> b2 \<Longrightarrow> Real \<in> b3"
+  using assms proof-
+    show "NaN \<in> b2 \<Longrightarrow> NaN \<in> b3"
+    proof-
+      assume "NaN \<in> b2"
+      obtain e where "e\<in>b1" using assms(2) by auto
+      then have "plus_bound_helper e NaN = NaN"
+        using plus_bound_helper.elims by blast
+      then show "NaN \<in> b3"
+        using \<open>Submission.bound.NaN \<in> b2\<close> \<open>e \<in> b1\<close> assms(1) by fastforce
+    qed
+  qed(auto| fastforce)+
+
 global_interpretation Val_semilattice
   where \<gamma> = \<gamma>_bounds and num' = num_bounds and plus' = plus_bounds
 proof (standard, goal_cases)
@@ -734,7 +803,89 @@ next
   then show ?case unfolding num_bounds_def by(cases i, auto)
 next
   case (4 i1 a1 i2 a2 j)
-  then show ?case sorry
+  obtain b\<^sub>1 where b1_def: "a1 = B b\<^sub>1"
+    using \<gamma>_bounds.cases by auto
+  then have "b\<^sub>1 \<noteq> {}" using 4(1) by auto
+  obtain b\<^sub>2 where b2_def: "a2 = B b\<^sub>2"
+    using \<gamma>_bounds.cases by auto
+  then have "b\<^sub>2 \<noteq> {}" using 4(2) by auto
+  obtain pb where pb_def: "B pb = plus_bounds a1 a2"
+      using \<gamma>_bounds.cases by metis
+  show ?case
+  proof(cases i1)
+    case None
+    with 4 have "j = None" by simp
+    with 4(1) have "NaN \<in> b\<^sub>1"
+      using \<gamma>_bounds_backwards None b1_def by blast
+    then have "NaN \<in> pb"
+      using \<open>b\<^sub>1 \<noteq> {}\<close> \<open>b\<^sub>2 \<noteq> {}\<close> b1_def b2_def pb_def plus_bounds_incl(1) by auto
+    then have "None \<in> \<gamma>_bounds (plus_bounds a1 a2)"
+      using pb_def \<gamma>_bounds_incl by metis
+    with \<open>j = None\<close> show ?thesis by simp
+  next
+    case (Some e1)
+    then have i1_def: "i1 = Some e1" by simp
+    then show ?thesis
+    using 4 proof(cases i2)
+      case None
+      with 4 Some have "j = None" by(auto split: ereal.splits)
+      with 4(2) have "NaN \<in> b\<^sub>2"
+        using \<gamma>_bounds_backwards None b2_def by blast
+      then have "NaN \<in> pb"
+      using \<open>b\<^sub>1 \<noteq> {}\<close> \<open>b\<^sub>2 \<noteq> {}\<close> b1_def b2_def pb_def plus_bounds_incl(2) by auto
+    then have "None \<in> \<gamma>_bounds (plus_bounds a1 a2)"
+      using pb_def \<gamma>_bounds_incl by metis
+      with \<open>j = None\<close> show ?thesis by simp
+    next
+      case (Some e2)
+      then have i2_def: "i2 = Some e2" by simp
+      then show ?thesis
+      proof(cases e1)
+        case (real r1)
+        then have e1_def: "e1 = ereal r1" by simp
+        with i1_def i2_def e1_def 4(3) have j_is_some: "j = Some (e1 + e2)" by simp
+        have "Real \<in> b\<^sub>1"
+            using 4(1) \<gamma>_bounds_excl(4) b1_def e1_def i1_def by blast
+        show ?thesis
+        proof(cases e2)
+          case (real r2)
+          then have "Real \<in> b\<^sub>2"
+            using 4(2) \<gamma>_bounds_excl(4) b2_def i2_def by blast
+          with \<open>Real \<in> b\<^sub>1\<close> have "Real \<in> pb"
+            by (simp add: \<open>b\<^sub>1 \<noteq> {}\<close> \<open>b\<^sub>2 \<noteq> {}\<close> b1_def b2_def pb_def plus_bounds_incl(11))
+          moreover have "e1 + e2 \<noteq> PInfty"
+            by (simp add: e1_def real)
+          moreover have "e1 + e2 \<noteq> MInfty"
+            by (simp add: e1_def real)
+          ultimately show ?thesis using j_is_some \<gamma>_bounds_incl(4) pb_def by metis
+        next
+          case PInf
+          then have "PosInf \<in> b\<^sub>2"
+            unfolding infinity_ereal_def using 4(2) \<gamma>_bounds_excl(2) b2_def i2_def by blast
+          with \<open>Real \<in> b\<^sub>1\<close> have "PosInf \<in> pb"
+            by (simp add: \<open>b\<^sub>1 \<noteq> {}\<close> \<open>b\<^sub>2 \<noteq> {}\<close> b1_def b2_def pb_def plus_bounds_incl(10))
+          moreover from j_is_some PInf have "j = Some PInfty" by fastforce
+          ultimately show ?thesis unfolding infinity_ereal_def using \<gamma>_bounds_incl(2) pb_def by metis
+        next
+          case MInf
+          then have "NegInf \<in> b\<^sub>2"
+            unfolding infinity_ereal_def using 4(2) \<gamma>_bounds_excl(3) b2_def i2_def
+            by (metis uminus_ereal.simps(2))
+          with \<open>Real \<in> b\<^sub>1\<close> have "NegInf \<in> pb"
+            by (simp add: \<open>b\<^sub>1 \<noteq> {}\<close> \<open>b\<^sub>2 \<noteq> {}\<close> b1_def b2_def pb_def plus_bounds_incl(9))
+          moreover from j_is_some MInf have "j = Some MInfty"
+            by (simp add: real)
+          ultimately show ?thesis unfolding infinity_ereal_def using \<gamma>_bounds_incl(3) pb_def by metis
+        qed
+      next
+        case PInf
+        then show ?thesis sorry
+      next
+        case MInf
+        then show ?thesis sorry
+      qed
+    qed
+  qed
 qed
 
 global_interpretation Abs_Int
