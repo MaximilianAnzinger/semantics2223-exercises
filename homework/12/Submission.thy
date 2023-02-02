@@ -3,34 +3,35 @@ theory Submission
 begin
 
 definition A\<^sub>0 :: "entry list"  where
-  "A\<^sub>0 = [Unchanged, Some Odd, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged]"
+  "A\<^sub>0 = [None, Some Odd, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged]"
 
 definition A\<^sub>1 :: "entry list"  where
-  "A\<^sub>1 = [Unchanged, Unchanged, Some Odd, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged]"
+  "A\<^sub>1 = [None, Unchanged, Some Odd, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Some Either, Unchanged]"
 
 definition A\<^sub>2 :: "entry list"  where
-  "A\<^sub>2 = [Unchanged, Unchanged, Unchanged, Some Odd, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged]"
+  "A\<^sub>2 = [None, Unchanged, Unchanged, Some Odd, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Some Either]"
 
 definition A\<^sub>3 :: "entry list"  where
-  "A\<^sub>3 = [Unchanged, Unchanged, Unchanged, Unchanged, Some Even, Unchanged, Unchanged, Unchanged, Unchanged]"
+  "A\<^sub>3 = [None, Unchanged, Unchanged, Unchanged, Some Even, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged]"
 
 definition A\<^sub>4 :: "entry list"  where
-  "A\<^sub>4 = [Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Some Even, Unchanged, Unchanged, Unchanged]"
+  "A\<^sub>4 = [None, Unchanged, Unchanged, Unchanged, Unchanged, Some Even, Unchanged, Unchanged, Unchanged, Unchanged]"
 
 definition A\<^sub>5 :: "entry list"  where
-  "A\<^sub>5 = [Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Some Odd, Unchanged, Unchanged]"
+  "A\<^sub>5 = [None, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Some Odd, Unchanged, Unchanged, Unchanged]"
 
 definition A\<^sub>6 :: "entry list"  where
-  "A\<^sub>6 = [Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged]"
+  "A\<^sub>6 = [None, Unchanged, Unchanged, Unchanged, Unchanged, Some Even, Unchanged, Unchanged, Unchanged, Unchanged]"
 
 definition A\<^sub>7 :: "entry list"  where
-  "A\<^sub>7 = [Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged]"
+  "A\<^sub>7 = [None, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Some Even, Unchanged, Unchanged, Unchanged]"
 
 definition A\<^sub>8 :: "entry list"  where
-  "A\<^sub>8 = [Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Some Odd, Unchanged]"
+  "A\<^sub>8 = [None, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Some Either, Unchanged, Unchanged]"
 
 definition A\<^sub>9 :: "entry list"  where
-  "A\<^sub>9 = [Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Some Odd]"
+  "A\<^sub>9 = [None, Unchanged, Unchanged, Some Odd, Unchanged, Unchanged, Unchanged, Unchanged, Unchanged, Some Either]"
+
 
 (*
 r := 1; {A0}
@@ -45,9 +46,6 @@ r := r + 2{A7}
 *)
 
 hide_const (open) None Some
-
-datatype bound = NegInf ("\<infinity>\<^sup>-") | PosInf ("\<infinity>\<^sup>+") | NaN | Real
-datatype bounds = B "bound set"
 
 instantiation bounds :: order
 begin
@@ -522,7 +520,7 @@ lemma m_o_h: "finite X \<Longrightarrow> m_o opt X \<le> (h*card X + 1)"
 
 definition m_c :: "'av st option acom \<Rightarrow> nat" ("m\<^sub>c") where
 "m_c C = sum_list (map (\<lambda>a. m_o a (vars C)) (annos C))"
-(*
+
 text\<open>Upper complexity bound:\<close>
 
 lemma m_c_h: "m_c C \<le> size(annos C) * (h * card(vars C) + 1)"
@@ -535,7 +533,7 @@ proof-
   also have "\<dots> = ?a * (h * ?n + 1)" by simp
   finally show ?thesis .
 qed
-*)
+
 
 end
 
@@ -574,14 +572,14 @@ apply(induction o1 o2 rule: sup_option.induct)
 apply(auto)
 by transfer simp
 
-(*
+
 lemma top_on_Step: fixes C :: "('a::semilattice_sup_top)st option acom"
 assumes "!!x e S. \<lbrakk>top_on_opt S X; x \<notin> X; vars e \<subseteq> -X\<rbrakk> \<Longrightarrow> top_on_opt (f x e S) X"
         "!!b S. top_on_opt S X \<Longrightarrow> vars b \<subseteq> -X \<Longrightarrow> top_on_opt (g b S) X"
 shows "\<lbrakk> vars C \<subseteq> -X; top_on_opt S X; top_on_acom C X \<rbrakk> \<Longrightarrow> top_on_acom (Step f g S C) X"
 proof(induction C arbitrary: S)
 qed (auto simp: top_on_acom_simps vars_acom_def top_on_post top_on_sup assms)
-*)
+
 
 locale Measure = Measure1 +
 assumes m2: "x < y \<Longrightarrow> m x > m y"
@@ -620,7 +618,13 @@ qed
 
 lemma m_o1: "finite X \<Longrightarrow> top_on_opt o1 (-X) \<Longrightarrow> top_on_opt o2 (-X) \<Longrightarrow>
   o1 \<le> o2 \<Longrightarrow> m_o o1 X \<ge> m_o o2 X"
-by(auto simp: le_less m_o2)
+  by(auto simp: le_less m_o2)
+
+(* this lemma is from Abs_Int0:
+lemma le_iff_le_annos: "C1 \<le> C2 \<longleftrightarrow>
+  strip C1 = strip C2 \<and> (\<forall> i<size(annos C1). annos C1 ! i \<le> annos C2 ! i)"
+by(simp add: less_eq_acom_def anno_def)
+*)
 
 (*
 lemma m_c2: "top_on_acom C1 (-vars C1) \<Longrightarrow> top_on_acom C2 (-vars C2) \<Longrightarrow>
@@ -656,19 +660,20 @@ locale Abs_Int_measure =
   Abs_Int_mono where \<gamma>=\<gamma> + Measure where m=m
   for \<gamma> :: "'av::semilattice_sup_top \<Rightarrow> val set" and m :: "'av \<Rightarrow> nat"
 begin
-(*
+
 lemma top_on_step': "\<lbrakk> top_on_acom C (-vars C) \<rbrakk> \<Longrightarrow> top_on_acom (step' \<top> C) (-vars C)"
 unfolding step'_def
 by(rule top_on_Step)
   (auto simp add: top_option_def fun_top split: option.splits)
-
+(*
 lemma AI_Some_measure: "\<exists>C. AI c = Some C"
-unfolding AI_def
+unfolding AI_def 
 apply(rule pfp_termination[where I = "\<lambda>C. top_on_acom C (- vars C)" and m="m_c"])
 apply(simp_all add: m_c2 mono_step'_top bot_least top_on_bot)
 using top_on_step' apply(auto simp add: vars_acom_def)
 done
 *)
+
 end
 (* Abst_Int1 --------------------- END ---------------------*)
 
@@ -698,7 +703,7 @@ next
   then show ?case
     unfolding top_bounds_def less_eq_bounds_def
     apply(simp split: bounds.splits)
-    using Submission.bound.exhaust by blast
+    using bound.exhaust by blast
 qed
 end
 
@@ -785,7 +790,7 @@ lemma plus_bounds_incl:
       then have "plus_bound_helper e NaN = NaN"
         using plus_bound_helper.elims by blast
       then show "NaN \<in> b3"
-        using \<open>Submission.bound.NaN \<in> b2\<close> \<open>e \<in> b1\<close> assms(1) by fastforce
+        using \<open>NaN \<in> b2\<close> \<open>e \<in> b1\<close> assms(1) by fastforce
     qed
   qed(auto| fastforce)+
 
@@ -879,10 +884,80 @@ next
         qed
       next
         case PInf
-        then show ?thesis sorry
+        then have e1_def: "e1 = PInfty" by simp
+        have "PosInf \<in> b\<^sub>1"
+          using 4(1) \<gamma>_bounds_backwards(2) b1_def e1_def i1_def by blast
+        then show ?thesis
+        proof(cases e2)
+          case (real r)
+          then have "Real \<in> b\<^sub>2"
+            using 4(2) \<gamma>_bounds_excl(4) b2_def i2_def by blast
+          with \<open>PosInf \<in> b\<^sub>1\<close> have "PosInf \<in> pb"
+            by (simp add: \<open>b\<^sub>1 \<noteq> {}\<close> \<open>b\<^sub>2 \<noteq> {}\<close> b1_def b2_def pb_def plus_bounds_incl(8))
+          moreover from 4(3) have "j = Some PInfty"
+            by (simp add: e1_def i1_def i2_def real)
+          ultimately show ?thesis
+            by (metis \<gamma>_bounds_incl(2) pb_def)
+        next
+          case PInf
+          then have "PosInf \<in> b\<^sub>2"
+            unfolding infinity_ereal_def using 4(2) \<gamma>_bounds_backwards(2) b2_def i2_def by blast
+          with \<open>PosInf \<in> b\<^sub>1\<close> have "PosInf \<in> pb"
+            using \<open>b\<^sub>1 \<noteq> {}\<close> \<open>b\<^sub>2 \<noteq> {}\<close> b1_def b2_def pb_def plus_bounds_incl(7) by auto
+          moreover from 4(3) have "j = Some PInfty"
+            by (simp add: e1_def i1_def i2_def PInf)
+          ultimately show ?thesis
+            by (metis \<gamma>_bounds_incl(2) pb_def)
+        next
+          case MInf
+          then have "NegInf \<in> b\<^sub>2"
+            unfolding infinity_ereal_def using 4(2) \<gamma>_bounds_excl(3) b2_def i2_def
+            by (metis uminus_ereal.simps(2))
+          with \<open>PosInf \<in> b\<^sub>1\<close> have "NaN \<in> pb"
+            using \<open>b\<^sub>1 \<noteq> {}\<close> \<open>b\<^sub>2 \<noteq> {}\<close> b1_def b2_def pb_def plus_bounds_incl(4) by auto
+          moreover from 4(3) have "j = None"
+            by (simp add: e1_def i1_def i2_def MInf)
+          ultimately show ?thesis
+            by (metis \<gamma>_bounds_incl(1) pb_def)
+        qed
       next
         case MInf
-        then show ?thesis sorry
+        then have e1_def: "e1 = MInfty" by simp
+        have "NegInf \<in> b\<^sub>1"
+          using 4(1) \<gamma>_bounds_backwards(3) b1_def e1_def i1_def by blast
+        then show ?thesis
+        proof(cases e2)
+          case (real r)
+          then have "Real \<in> b\<^sub>2"
+            using 4(2) \<gamma>_bounds_excl(4) b2_def i2_def by blast
+          with \<open>NegInf \<in> b\<^sub>1\<close> have "NegInf \<in> pb"
+            by (simp add: \<open>b\<^sub>1 \<noteq> {}\<close> \<open>b\<^sub>2 \<noteq> {}\<close> b1_def b2_def pb_def plus_bounds_incl(6))
+          moreover from 4(3) have "j = Some MInfty"
+            by (simp add: e1_def i1_def i2_def real)
+          ultimately show ?thesis
+            by (metis \<gamma>_bounds_incl(3) pb_def)
+        next
+          case PInf
+          then have "PosInf \<in> b\<^sub>2"
+            unfolding infinity_ereal_def using 4(2) \<gamma>_bounds_backwards(2) b2_def i2_def by blast
+          with \<open>NegInf \<in> b\<^sub>1\<close> have "NaN \<in> pb"
+            using \<open>b\<^sub>1 \<noteq> {}\<close> \<open>b\<^sub>2 \<noteq> {}\<close> b1_def b2_def pb_def plus_bounds_incl(3) by auto
+          moreover from 4(3) have "j = None"
+            by (simp add: e1_def i1_def i2_def PInf)
+          ultimately show ?thesis
+            by (metis \<gamma>_bounds_incl(1) pb_def)
+        next
+          case MInf
+          then have "NegInf \<in> b\<^sub>2"
+            unfolding infinity_ereal_def using 4(2) \<gamma>_bounds_excl(3) b2_def i2_def
+            by (metis uminus_ereal.simps(2))
+          with \<open>NegInf \<in> b\<^sub>1\<close> have "NegInf \<in> pb"
+            using \<open>b\<^sub>1 \<noteq> {}\<close> \<open>b\<^sub>2 \<noteq> {}\<close> b1_def b2_def pb_def plus_bounds_incl(5) by auto
+          moreover from 4(3) have "j = Some MInfty"
+            by (simp add: e1_def i1_def i2_def MInf)
+          ultimately show ?thesis
+            by (metis \<gamma>_bounds_incl(3) pb_def)
+        qed
       qed
     qed
   qed
@@ -902,14 +977,55 @@ proof (standard, goal_cases)
 qed
 
 fun m_bounds :: "bounds \<Rightarrow> nat"  where
-  "m_bounds _ = undefined"
+  "m_bounds (B s) = card ({NegInf, PosInf, NaN, Real} - s)"
 
 abbreviation h_bounds :: nat where 
-  "h_bounds = undefined"
+  "h_bounds \<equiv> 4"
 
 global_interpretation Abs_Int_measure
 where \<gamma> = \<gamma>_bounds and num' = num_bounds and plus' = plus_bounds
 and m = m_bounds and h = h_bounds
-  sorry
+proof (standard, goal_cases)
+  case (1 x)
+  let ?u = "{NegInf, PosInf, NaN, Real}"
+  obtain s where "x = B s"
+    using \<gamma>_bounds.cases by auto
+  have "(UNIV - s) \<subseteq> ?u"
+    using bound.exhaust by blast
+  moreover have "finite ?u" by simp
+  ultimately have "card (?u - s) \<le> card ?u" using card_mono[of ?u "?u - s"] by blast
+  moreover have "card ?u = 4" by simp
+  ultimately show ?case by (simp add: \<open>x = B s\<close>)
+next
+  case (2 x y)
+  let ?u = "{NegInf, PosInf, NaN, Real}"
+  have "finite ?u" by simp
+  obtain xs where "x = B xs"
+    using \<gamma>_bounds.cases by auto
+  have "xs \<subseteq> ?u"
+    using bound.exhaust by blast
+  with \<open>finite ?u\<close> have "finite xs"
+    using rev_finite_subset by blast
+  obtain ys where "y = B ys"
+    using \<gamma>_bounds.cases by auto
+  let ?u = "{NegInf, PosInf, NaN, Real}"
+  have "ys \<subseteq> ?u"
+    using bound.exhaust by blast
+  with \<open>finite ?u\<close> have "finite ys"
+    using rev_finite_subset by blast
+  from \<open>x < y\<close> have "xs \<subset> ys"
+    unfolding less_bounds_def by(auto simp: \<open>x = B xs\<close> \<open>y = B ys\<close> psubsetD)
+  then have "card xs < card ys"
+    by (simp add: \<open>finite ys\<close> psubset_card_mono)
+  moreover 
+  from \<open>xs \<subset> ys\<close> \<open>ys \<subseteq> ?u\<close>have "xs \<subset> ?u" by auto
+  with \<open>finite ?u\<close> have "card xs < card ?u" using psubset_card_mono[of ?u xs] by fastforce
+  then have "card ?u - card ys < card ?u - card xs"
+    using diff_less_mono2[of "card xs" "card ys" "card ?u"] calculation by blast
+  thm card_Diff_subset[of xs ?u]
+  with \<open>finite xs\<close> \<open>finite ys\<close> \<open>xs \<subseteq> ?u\<close> \<open>ys \<subseteq> ?u\<close> have "card (?u - ys) < card (?u - xs)"
+    using card_Diff_subset[of xs ?u] card_Diff_subset[of ys ?u] by simp
+  then show ?case by(simp add: \<open>x = B xs\<close> \<open>y = B ys\<close>)
+qed
 
 end
